@@ -12,6 +12,12 @@
   const DT = 1 / 60;
   const MAX_BATTLE_TIME = 240;   // seconds before the battle is judged on points
 
+  /* How close a unit must be to see a submerged submarine. Shared by the
+   * visibility check and by the stealth stand-off logic, which needs to know the
+   * distance it is trying to stay outside of. */
+  const ASW_DETECT = 620;        // units with sonar
+  const PASSIVE_DETECT = 150;    // everything else
+
   let nextId = 1;
 
   /* ============================ Unit ============================ */
@@ -71,7 +77,31 @@
       if (d.range > best) { best = d.range; minR = d.minRange; }
     }
     if (best === 0) best = this.type.maxRange;
-    return { want: best * 0.82, min: minR * 1.15 };
+
+    let want = best * 0.82;
+    let min = minR * 1.15;
+
+    /* A stealth unit holds outside the range at which its target could spot it,
+     * provided its weapons still reach from there. Without this a submarine
+     * closes to its own firing range and simply waits for a blind capital ship to
+     * blunder into detection range, throwing away the ambush it is built around.
+     * Against a sonar-equipped hunter the detection range exceeds the torpedo's
+     * reach, so no safe distance exists and the submarine has to accept the fight
+     * — which is exactly how escorts are meant to counter it. */
+    if (this.type.stealth && this.target) {
+      /* The margin is generous on purpose: a submarine turns slowly, so an enemy
+       * closes a long way before the retreat actually takes effect. Cutting it
+       * fine let one boat drift into detection, and a capital ship's splash then
+       * killed the neighbours clustered around it. */
+      const spotted = (this.target.type.asw ? ASW_DETECT : PASSIVE_DETECT) + 180;
+      if (spotted < best * 0.95) {
+        min = Math.max(min, spotted);
+        /* Keep the hold distance clear of the back-off distance, or the unit
+         * oscillates between advancing and retreating. */
+        if (want < min + 15) want = Math.min(best * 0.95, min + 15);
+      }
+    }
+    return { want: want, min: min };
   };
 
   /* ========================== Projectile ========================= */
@@ -247,8 +277,8 @@
   Battle.prototype.canSee = function (looker, other) {
     if (!other.type.stealth) return true;
     const d2 = U.dist2(looker.x, looker.y, other.x, other.y);
-    if (looker.type.asw) return d2 < 620 * 620;
-    return d2 < 150 * 150;
+    const r = looker.type.asw ? ASW_DETECT : PASSIVE_DETECT;
+    return d2 < r * r;
   };
 
   Battle.prototype.canEngage = function (u, e) {

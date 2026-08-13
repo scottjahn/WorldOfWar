@@ -79,7 +79,10 @@ Other systems that shape fights:
 - **Reach** — artillery and capital ships outrange everything, but have a minimum range and
   are helpless once something closes.
 - **Stealth** — submarines are invisible until they are almost touching, unless the looker
-  has sonar (`asw`). Destroyers, patrol boats and attack helicopters can see them.
+  has sonar (`asw`). Destroyers, patrol boats and attack helicopters can see them. A submarine
+  actively holds station outside whatever range its current target could spot it from, so it
+  kites a blind capital ship while torpedoing it. Against a sonar-equipped hunter no safe
+  distance exists, and it has to take the fight.
 - **Movement styles** — tanks and ships turn their hull to steer, helicopters hover and hold
   a standoff, and fixed-wing aircraft never stop: they fly attack runs, break off and come
   back around. They fire nose-on, so they trade sustained damage for speed and reach.
@@ -90,10 +93,15 @@ Other systems that shape fights:
 
 Counters worth knowing, each measured over repeated seeded battles at equal cost: AT Teams
 beat medium tanks but lose to heavies; rifle swarms overrun light tanks; jeeps overrun
-artillery; flak tanks and SAMs shred anything with wings; destroyers and patrol boats hunt
-submarines; battleships beat destroyers, and destroyers beat corvettes. Carriers own the air
-and grind down smaller warships through sheer attrition, but a battleship outranges the air
-group entirely and sinks them.
+artillery; flak tanks and SAMs shred anything with wings; battleships beat destroyers;
+missile corvettes trade closely with destroyers.
+
+Submarines gut anything without sonar — including battleships, which they out-range while
+staying invisible — and lose badly to everything with it: destroyers, patrol boats and
+attack helicopters. Screen your capital ships.
+
+Outcomes between closely matched units can turn on starting formation, so treat any single
+battle as one sample rather than proof.
 
 ## Layout
 
@@ -138,6 +146,27 @@ Two performance notes worth preserving if you edit the simulation:
 At the largest budget (129 units) a simulation tick costs ~0.09 ms and a frame draw ~0.7 ms,
 so even 4× speed leaves the frame budget almost untouched.
 
+## Versions and stale caches
+
+The title screen shows the running build in its bottom corner (`v1.3.0 · build …`), and the
+same string is logged to the console at startup. If that number is not what you just
+deployed, you are looking at a cached copy rather than a broken deploy.
+
+`js/version.js` is the single source of truth. **Bump `WOW_VERSION` and `WOW_BUILD` whenever
+you deploy** — the service worker reads the same file via `importScripts` and names its cache
+after the version, so a bump retires every older cache on the next activation. Skipping the
+bump makes the number on screen meaningless.
+
+The worker answers from cache as soon as the network looks slower than three seconds, while
+the request keeps running in the background and refreshes the cache. A bad connection
+therefore costs you at most one launch on the previous build rather than pinning you to it
+forever. The page also calls `registration.update()` on load and reloads once when a newer
+worker takes over.
+
+To force a clean slate on a device that is stuck, open devtools → Application → Service
+Workers → Unregister, then reload. On Android Chrome, clear the site's storage from the
+padlock menu.
+
 ## Packaging for Android
 
 The app is already a PWA (`manifest.webmanifest` + `sw.js` + icons), so:
@@ -159,10 +188,9 @@ The app is already a PWA (`manifest.webmanifest` + `sw.js` + icons), so:
 
 - Direct-fire weapons ignore line of sight, so units can shoot over rock outcrops.
 - Splash damage never harms friendlies, which keeps artillery usable but is generous.
-- Submarines underperform their description against capital ships. They advance to their own
-  firing range, which walks them inside the detection radius of a battleship that is blindly
-  steaming toward them; a stealth unit really ought to back off when something gets close
-  enough to spot it.
+- Massed Aircraft Carriers are the strongest naval purchase in a pure same-unit fight; they
+  are only kept honest by mixed fleets, where swapping a carrier for escorts measures about
+  the same. Worth a price rise if you play a lot of naval battles.
 - Naval doctrines win disproportionately on water-heavy maps, because land units simply have
   no way to touch a ship.
 - Seeds reproduce a battle on the same browser, not necessarily across different ones.

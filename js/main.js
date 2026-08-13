@@ -55,6 +55,11 @@
     this.ui.setPhaseLabel('Setup');
 
     let html = '<h1>World of War</h1>';
+    /* Directly under the title so it is visible without scrolling on a phone —
+     * the whole point is checking at a glance which build actually loaded when a
+     * cached copy would otherwise look identical to a fresh one. */
+    html += '<div class="build-tag">v' + W.UI.esc(W.WOW_VERSION || '?') +
+      ' · build ' + W.UI.esc(W.WOW_BUILD || '?') + '</div>';
     html += '<p class="lede">Build an army, place it, and watch the battle play itself out.</p>';
 
     html += '<div class="section-label">Battlefield</div><div class="map-grid">';
@@ -503,9 +508,26 @@
   };
 
   window.addEventListener('load', function () {
+    /* Also on the console, so the running build can be confirmed from devtools
+     * without opening the menu. */
+    if (window.console && console.info) {
+      console.info('World of War v' + W.WOW_VERSION + ' (build ' + W.WOW_BUILD + ')');
+    }
     W.game = new Game();
     if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
-      navigator.serviceWorker.register('sw.js').catch(function () { /* offline support is optional */ });
+      /* Whether a worker was already driving this page before we registered. */
+      const hadController = !!navigator.serviceWorker.controller;
+      let reloading = false;
+      navigator.serviceWorker.addEventListener('controllerchange', function () {
+        /* A newer build just took over. Reload once so the running page is not a
+         * mix of old and new files — without this, an updated worker only takes
+         * effect on some later visit the player never knowingly makes. */
+        if (hadController && !reloading) { reloading = true; location.reload(); }
+      });
+      navigator.serviceWorker.register('sw.js').then(function (reg) {
+        /* Ask outright rather than waiting for the browser's own update check. */
+        reg.update();
+      }).catch(function () { /* offline support is optional */ });
     }
   });
 })(window);
