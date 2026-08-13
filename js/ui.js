@@ -314,9 +314,10 @@
         cost = g.armyCost(team);
         count = army.length;
         sub = count + (count === 1 ? ' unit' : ' units');
-        /* Hide the opponent's army value until the battle starts. */
-        if (g.phase === 'place' && team !== g.playerTeam && !g.hotseat) {
-          cost = '???'; sub = 'unknown';
+        /* Hide the opponent's spend exactly when their army is hidden on the map,
+         * so the tally never leaks what hotseat placement is concealing. */
+        if (g.phase === 'place' && team !== g.playerTeam && g.hotseat) {
+          cost = '???'; sub = 'hidden';
         }
       }
       costEl.textContent = typeof cost === 'number' ? U.formatCost(cost) : cost;

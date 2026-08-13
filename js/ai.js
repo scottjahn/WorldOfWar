@@ -41,7 +41,7 @@
     {
       name: 'Naval Task Force',
       picks: [['destroyer', 2], ['corvette', 2], ['patrolboat', 1.6], ['submarine', 1.4],
-        ['battleship', 0.7], ['gunship', 0.8], ['rifles', 1]],
+        ['battleship', 0.7], ['carrier', 0.6], ['gunship', 0.8], ['rifles', 1]],
       needsSea: 0.18
     },
     {
@@ -56,7 +56,7 @@
   /* Placement bands: back-line units deploy behind the front line. */
   const DEPTH = {
     spg: 0.15, mlrs: 0.2, sam: 0.25, mortar: 0.3, coastalgun: 0.25, repair: 0.25,
-    battleship: 0.2, corvette: 0.35, submarine: 0.3,
+    battleship: 0.2, corvette: 0.35, submarine: 0.3, carrier: 0.12,
     bomber: 0.2, fighter: 0.3,
     heavytank: 0.7, medtank: 0.68, lighttank: 0.72, apc: 0.72, jeep: 0.78,
     rifles: 0.75, mgteam: 0.6, atteam: 0.68, pillbox: 0.55
@@ -128,8 +128,11 @@
       const other = pool[Math.floor(rand() * pool.length)];
       other.picks.forEach(function (p) { picks.push([p[0], p[1] * 0.45]); });
     }
-    /* Drop anything that has nowhere legal to sit on this map. */
+    /* Drop anything that has nowhere legal to sit on this map. Hidden units are
+     * excluded too: they are carried, not bought, and a zero cost would spin the
+     * purchase loop forever without ever consuming budget. */
     picks = picks.filter(function (p) {
+      if (!T[p[0]] || T[p[0]].hidden || T[p[0]].cost <= 0) return false;
       const dm = domainOf(p[0]);
       if (dm === Units.SEA) return seaFrac > 0.05;
       if (dm === Units.LAND) return landFrac > 0.05;

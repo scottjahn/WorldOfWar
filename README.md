@@ -41,6 +41,10 @@ Choose **Computer** for a generated opponent, or **Two players** to hand the dev
 let a second commander deploy. After a battle you can replay it, edit both armies and fight
 again, or start fresh.
 
+In two-player mode the armies stay secret. Blue deploys, the screen blanks for the hand-over,
+and Red then deploys without ever seeing Blue's units or even Blue's total spend — the tally
+reads `???` until the battle starts. Deployments are only revealed when the shooting does.
+
 ## How a battle is decided
 
 A battle ends when one side is wiped out. If 240 seconds pass, the winner is whoever has
@@ -68,12 +72,17 @@ Other systems that shape fights:
 - **Stealth** — submarines are invisible until they are almost touching, unless the looker
   has sonar (`asw`). Destroyers, patrol boats and attack helicopters can see them.
 - **Movement styles** — tanks and ships turn their hull to steer, helicopters hover and hold
-  a standoff, and fixed-wing aircraft never stop: they overshoot and bank around for another
-  pass.
+  a standoff, and fixed-wing aircraft never stop: they fly attack runs, break off and come
+  back around. They fire nose-on, so they trade sustained damage for speed and reach.
+- **Carriers** — the Aircraft Carrier is the one unit that brings other units. It launches six
+  F-14 Tomcats and replaces losses from six spare airframes on a timer. The Tomcats are not
+  sold separately and cost nothing extra; the carrier's price is the whole package. It has no
+  surface armament at all, so sinking it both removes the ship and stops the replacements.
 
 Some counters worth knowing: AT Teams beat medium tanks but lose to heavies; jeeps overrun
 artillery; flak tanks delete helicopters; SAMs delete anything with wings; corvettes outrange
-destroyers; patrol boats hunt submarines.
+destroyers; patrol boats hunt submarines; and carriers own the air but die to anything that
+gets within gun range.
 
 ## Layout
 
@@ -96,6 +105,13 @@ sw.js                 offline support (network-first, so edits always take effec
 Balance lives entirely in `js/units.js`; every unit is one object with its stats, weapons and
 cost. Nothing else needs to change to add a unit — give it a `shape` that `render.js` already
 draws and it appears in the roster automatically, sorted by cost into its domain tab.
+
+Two flags on a unit are worth knowing. `hidden: true` keeps it out of the roster and out of
+the AI's shopping list, for things that are carried rather than bought. `squadron: { type,
+count, respawn, reserve }` makes it launch aircraft at the start of the battle and top the
+group back up from a finite pool. Carried units should cost 0 so the carrier's price is the
+whole package — and note that a purchasable unit costing 0 would spin the AI's buy loop
+without ever consuming budget, which is why hidden and zero-cost types are filtered out there.
 
 Maps are the shaper functions in `Terrain.prototype.generate`. Add an entry to `Terrain.MAPS`
 and a branch there.

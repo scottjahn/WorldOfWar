@@ -58,6 +58,8 @@
       asw: false,         // can detect and attack submerged submarines
       stealth: false,
       shape: 'tank',
+      hidden: false,      // true = carried by another unit, never sold in the roster
+      squadron: null,     // { type, count, respawn } — aircraft this unit launches
       tags: []
     }, def);
     u.weapons = u.weapons.map(weapon);
@@ -229,12 +231,13 @@
     }),
 
     fighter: unit({
-      name: 'Fighter Jet', domain: AIR, cost: 430, hp: 310, armor: 10,
+      name: 'Fighter Jet', domain: AIR, cost: 430, hp: 420, armor: 15,
       speed: 275, radius: 13, shape: 'jet', move: 'fixedwing', turnRate: 1.5, accel: 300,
       role: 'Air superiority',
-      desc: 'Owns the sky and strafes anything below it, but never stops moving — it overshoots and must come back around.',
+      desc: 'Built to clear the sky of other aircraft, and it will strafe ground targets on the way past. ' +
+        'It never stops moving, so it banks into a strafing turn rather than holding position.',
       weapons: [
-        { name: 'AAM', kind: 'missile', dmg: 210, pen: 85, range: 540, cd: 6.0, speed: 520, turnRate: 3.6, splash: 16, targets: AIR, color: '#9fe8ff' },
+        { name: 'AAM', kind: 'missile', dmg: 210, pen: 85, range: 540, cd: 4.0, speed: 520, turnRate: 3.6, splash: 16, targets: AIR, color: '#9fe8ff' },
         { name: 'Nose Cannon', dmg: 22, pen: 32, range: 310, cd: 0.07, spread: 0.035, targets: ALL, color: '#ffe27a', tracerWidth: 1.5 }
       ]
     }),
@@ -290,6 +293,36 @@
       ]
     }),
 
+    carrier: unit({
+      name: 'Aircraft Carrier', domain: SEA, cost: 1100, hp: 3200, armor: 55,
+      speed: 46, radius: 26, shape: 'carrier', move: 'naval', turnRate: 0.45, accel: 22, asw: true,
+      role: 'Fleet carrier',
+      desc: 'Puts six F-14 Tomcats in the air and replaces losses from six spare airframes. ' +
+        'Heavy anti-air batteries defend the deck, but it carries nothing at all that can shoot ' +
+        'back at a ship — escort it, or lose it.',
+      squadron: { type: 'f14', count: 6, respawn: 16, reserve: 6 },
+      weapons: [
+        { name: 'AA Battery', dmg: 16, pen: 26, range: 400, cd: 0.12, spread: 0.045, targets: AIR, color: '#ffe27a', tracerWidth: 1.4 },
+        { name: 'CIWS', dmg: 14, pen: 22, range: 300, cd: 0.1, spread: 0.05, targets: AIR, color: '#fff0c0', tracerWidth: 1.2 }
+      ]
+    }),
+
+    /* Carried by the Aircraft Carrier, never bought directly. Costed at 0 so the
+     * carrier's 1600 is the whole price of the package, in the roster and in the
+     * surviving-value tally alike. */
+    f14: unit({
+      name: 'F-14 Tomcat', domain: AIR, cost: 0, hp: 450, armor: 16, hidden: true,
+      speed: 290, radius: 13, shape: 'jet', move: 'fixedwing', turnRate: 1.65, accel: 320,
+      role: 'Carrier air superiority',
+      desc: 'Carrier-borne interceptor. Long-range Phoenix missiles own the sky, and a light rocket ' +
+        'load lets it hurt ships and vehicles — though it is no substitute for a bomber.',
+      weapons: [
+        { name: 'Phoenix AAM', kind: 'missile', dmg: 230, pen: 92, range: 620, cd: 4.0, speed: 540, turnRate: 3.6, splash: 16, targets: AIR, color: '#9fe8ff' },
+        { name: 'Zuni Rockets', kind: 'missile', dmg: 95, pen: 58, range: 300, cd: 4.5, salvo: 2, salvoDelay: 0.14, speed: 400, turnRate: 2.2, splash: 20, targets: GROUND, color: '#ffa860' },
+        { name: '20mm Cannon', dmg: 24, pen: 34, range: 320, cd: 0.07, spread: 0.035, targets: ALL, color: '#ffe27a', tracerWidth: 1.5 }
+      ]
+    }),
+
     submarine: unit({
       name: 'Submarine', domain: SEA, cost: 380, hp: 440, armor: 16,
       speed: 56, radius: 14, shape: 'sub', move: 'naval', turnRate: 1.0, accel: 40, stealth: true,
@@ -306,7 +339,8 @@
     t.id = id;
     const bucket = t.domain === AIR ? 'air' : t.domain === SEA ? 'sea' : 'land';
     t.bucket = bucket;
-    ORDER[bucket].push(id);
+    /* Hidden units still exist and fight, they just cannot be bought. */
+    if (!t.hidden) ORDER[bucket].push(id);
   });
   /* Cheapest first reads best in a shop list. */
   Object.keys(ORDER).forEach(function (k) {

@@ -45,6 +45,12 @@
       return { def: w, cd: Math.random() * w.cd, salvoLeft: 0, salvoTimer: 0, target: null };
     });
 
+    /* Carriers track the aircraft they have in the air, plus a finite pool of
+     * spare airframes so a long battle cannot be farmed with endless respawns. */
+    this.wing = type.squadron ? [] : null;
+    this.reserve = type.squadron ? (type.squadron.reserve || 0) : 0;
+    this.launchTimer = 0;
+
     /* Visual-only state the renderer reads. */
     this.rotor = Math.random() * U.TAU;
     this.recoil = 0;
@@ -127,7 +133,58 @@
         self.startValue[team] += type.cost;
       });
     });
+
+    /* Carriers arrive with their squadron already airborne. Snapshot the list
+     * first, since launching appends to it. */
+    this.units.slice().forEach(function (u) {
+      if (u.type.squadron) self.launch(u, u.type.squadron.count);
+    });
   }
+
+  /* Puts `n` aircraft into the air around a carrier, fanned out around the deck. */
+  Battle.prototype.launch = function (carrier, n) {
+    const squad = carrier.type.squadron;
+    const type = Units.TYPES[squad.type];
+    if (!type) return;
+    for (let i = 0; i < n; i++) {
+      const spread = carrier.wing.length + i;
+      const a = carrier.hdg + (spread % 2 === 0 ? 0.7 : -0.7) - Math.PI * (spread % 4) * 0.12;
+      const d = carrier.radius + 34;
+      const u = new Unit(type, carrier.team, carrier.x + Math.cos(a) * d, carrier.y + Math.sin(a) * d);
+      u.hdg = a;
+      u.turret = a;
+      u.speed = type.speed * 0.6;
+      carrier.wing.push(u);
+      this.units.push(u);
+    }
+  };
+
+  /* Replaces squadron losses while the carrier is alive. Destroying the carrier
+   * does not down the aircraft already flying — it just stops the replacements. */
+  Battle.prototype.serviceSquadrons = function (dt) {
+    for (let i = 0; i < this.units.length; i++) {
+      const u = this.units[i];
+      if (!u.alive || !u.type.squadron || !u.wing) continue;
+
+      let live = 0;
+      for (let k = 0; k < u.wing.length; k++) if (u.wing[k].alive) live++;
+      if (live !== u.wing.length) {
+        u.wing = u.wing.filter(function (a) { return a.alive; });
+      }
+
+      if (u.wing.length >= u.type.squadron.count || u.reserve <= 0) {
+        u.launchTimer = u.type.squadron.respawn;
+        continue;
+      }
+      u.launchTimer -= dt;
+      if (u.launchTimer <= 0) {
+        u.launchTimer = u.type.squadron.respawn;
+        u.reserve--;
+        this.launch(u, 1);
+        this.effects.push({ kind: 'heal', x: u.x, y: u.y, t: 0, life: 0.6 });
+      }
+    }
+  };
 
   Battle.prototype.aliveUnits = function (team) {
     let n = 0;
@@ -170,6 +227,8 @@
       u.rotor += dt * 34;
     }
 
+    /* After the unit loop: launching appends to this.units. */
+    this.serviceSquadrons(dt);
     this.servicePathQueue();
     this.stepProjectiles(dt);
     this.stepEffects(dt);
@@ -415,13 +474,30 @@
     let aimX, aimY;
     if (tgt) {
       const d = U.dist(u.x, u.y, tgt.x, tgt.y);
-      const attackRange = u.type.weapons[u.type.weapons.length - 1].range;
-      if (d < attackRange * 0.55) {
-        /* Too close to turn onto it — commit to the pass and swing wide afterwards. */
+      /* Fly the attack run out to the longest weapon that can engage this target,
+       * so a missile-armed fighter opens fire on the way in rather than having to
+       * reach gun range first. Against ground targets its air-to-air missiles do
+       * not apply, so this naturally collapses to the cannon's range. */
+      let attackRange = 0;
+      for (let i = 0; i < u.type.weapons.length; i++) {
+        const w = u.type.weapons[i];
+        if (!(w.targets & tgt.domain)) continue;
+        if (w.range > attackRange) attackRange = w.range;
+      }
+      if (!attackRange) attackRange = u.type.maxRange;
+      if (d < attackRange * 0.5) {
+        /* Break off and set up another pass. These aircraft fire nose-on, so a
+         * standing orbit would keep them alive and silent — they have to point at
+         * the target to shoot. Breaking to just outside weapon range keeps the
+         * attack cycle short instead of flying halfway across the map. */
+        if (!u.orbitDir) u.orbitDir = this.rand() < 0.5 ? -1 : 1;
         const away = Math.atan2(u.y - tgt.y, u.x - tgt.x);
-        aimX = tgt.x + Math.cos(away + 1.2) * attackRange * 1.5;
-        aimY = tgt.y + Math.sin(away + 1.2) * attackRange * 1.5;
+        const breakR = attackRange * 1.15;
+        const ang = away + u.orbitDir * 0.75;
+        aimX = tgt.x + Math.cos(ang) * breakR;
+        aimY = tgt.y + Math.sin(ang) * breakR;
       } else {
+        /* Run straight in so the guns bear. */
         aimX = tgt.x; aimY = tgt.y;
       }
     } else {
@@ -513,10 +589,14 @@
       const dist = U.dist(u.x, u.y, tgt.x, tgt.y);
       if (dist > d.range || dist < d.minRange) continue;
 
-      /* Direct-fire weapons need the turret roughly on target first. */
+      /* Direct-fire weapons need the turret roughly on target first. Guided
+       * weapons get a much wider arc — they steer themselves, and a boresight
+       * gate made air-launched missiles nearly unusable, since a fixed-wing
+       * aircraft's "turret" is locked to its heading. */
       if (d.kind !== 'shell') {
         const want = Math.atan2(tgt.y - u.y, tgt.x - u.x);
-        if (Math.abs(U.angleDiff(u.turret, want)) > 0.3) continue;
+        const arc = (d.kind === 'missile' || d.kind === 'torpedo') ? 1.3 : 0.3;
+        if (Math.abs(U.angleDiff(u.turret, want)) > arc) continue;
       }
 
       w.cd = d.cd;

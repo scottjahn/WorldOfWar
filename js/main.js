@@ -144,6 +144,7 @@
   Game.prototype.enterPlacementFor = function (team) {
     this.playerTeam = team;
     this.placingType = null;
+    this.concealed = false;
     this.undoStack = [];
     this.ui.setPhaseLabel(team === 0 ? 'Deploy — Blue' : 'Deploy — Red');
     this.ui.buildRoster();
@@ -308,8 +309,15 @@
 
     if (this.hotseat && this.playerTeam === 0) {
       const self = this;
+      /* Blank the battlefield before the overlay opens, so Blue's deployment is
+       * not sitting behind it while the device changes hands. */
+      this.concealed = true;
+      this.placingType = null;
+      this.ghost = null;
+      this.hover = null;
       this.ui.showOverlay(
-        '<h2>Pass the device</h2><p class="lede">Blue army is locked in. Hand over to the Red commander.</p>' +
+        '<h2>Pass the device</h2><p class="lede">Blue army is locked in and hidden. ' +
+        'Hand over to the Red commander — you will deploy without seeing where Blue is.</p>' +
         '<div class="overlay-actions"><button class="btn primary" id="ovNext">Red is ready</button></div>',
         function (panel) {
           panel.querySelector('#ovNext').addEventListener('click', function () {
@@ -464,10 +472,18 @@
     }
     if (this.phase !== 'battle') this.resultShown = false;
 
+    /* In hotseat, each commander only ever sees their own army during placement,
+     * and nothing at all while the device is being handed over. */
+    let armyFilter = null;
+    if (this.phase === 'place' && this.hotseat) {
+      armyFilter = this.concealed ? -1 : this.playerTeam;
+    }
+
     this.renderer.draw({
       phase: this.phase,
       battle: this.battle,
       armies: this.battle ? null : this.armies,
+      armyFilter: armyFilter,
       team: this.playerTeam,
       placingType: this.placingType,
       ghost: this.ghost,

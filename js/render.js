@@ -319,6 +319,9 @@
   Renderer.prototype.drawStaticArmies = function (ctx, state) {
     const self = this;
     state.armies.forEach(function (army, team) {
+      /* armyFilter hides the other commander's deployment in hotseat play:
+       * a team index shows only that army, -1 shows none, null shows everything. */
+      if (state.armyFilter != null && state.armyFilter !== team) return;
       army.forEach(function (e) {
         const type = Units.TYPES[e.type];
         self.drawUnitShape(ctx, type, team, e.x, e.y, team === 0 ? 0 : Math.PI, 0, 1);
@@ -627,6 +630,7 @@
       case 'bomber': drawBomber(ctx, r, body, dark, light); break;
       case 'boat': drawBoat(ctx, r, body, dark, light); break;
       case 'ship': drawShip(ctx, r, body, dark, light); break;
+      case 'carrier': drawCarrier(ctx, r, body, dark, light); break;
       case 'sub': drawSub(ctx, r, body, dark, light); break;
       default: drawTank(ctx, r, body, dark, light); break;
     }
@@ -886,6 +890,56 @@
     ctx.beginPath(); ctx.arc(-r * 1.1, 0, r * 0.2, 0, U.TAU); ctx.fill();
   }
 
+  function drawCarrier(ctx, r, body, dark, light) {
+    /* Hull, then a broad flight deck overhanging it. */
+    ctx.fillStyle = dark;
+    ctx.beginPath();
+    ctx.moveTo(r * 1.75, 0);
+    ctx.lineTo(r * 1.4, -r * 0.5);
+    ctx.lineTo(-r * 1.5, -r * 0.48);
+    ctx.lineTo(-r * 1.62, 0);
+    ctx.lineTo(-r * 1.5, r * 0.48);
+    ctx.lineTo(r * 1.4, r * 0.5);
+    ctx.closePath(); ctx.fill();
+
+    ctx.fillStyle = '#3c4149';
+    ctx.beginPath();
+    ctx.moveTo(r * 1.62, -r * 0.28);
+    ctx.lineTo(r * 1.62, r * 0.34);
+    ctx.lineTo(-r * 1.5, r * 0.62);
+    ctx.lineTo(-r * 1.55, -r * 0.66);
+    ctx.closePath();
+    ctx.fill();
+    /* Team-coloured deck trim — the deck itself is grey, so without this you
+     * cannot tell whose carrier it is at normal zoom. */
+    ctx.strokeStyle = body;
+    ctx.lineWidth = Math.max(1.2, r * 0.1);
+    ctx.stroke();
+
+    /* Angled landing deck stripe. */
+    ctx.save();
+    ctx.strokeStyle = 'rgba(236,240,245,0.55)';
+    ctx.lineWidth = Math.max(1, r * 0.05);
+    ctx.setLineDash([r * 0.22, r * 0.18]);
+    ctx.beginPath();
+    ctx.moveTo(r * 1.4, -r * 0.16);
+    ctx.lineTo(-r * 1.35, -r * 0.44);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(r * 1.45, r * 0.12);
+    ctx.lineTo(-r * 1.3, r * 0.42);
+    ctx.stroke();
+    ctx.restore();
+
+    /* Island superstructure to starboard. */
+    ctx.fillStyle = body;
+    roundRect(ctx, -r * 0.1, r * 0.34, r * 0.7, r * 0.3, 2); ctx.fill();
+    ctx.fillStyle = light;
+    ctx.fillRect(r * 0.32, r * 0.38, r * 0.12, r * 0.22);
+    ctx.fillStyle = dark;
+    ctx.fillRect(-r * 0.02, r * 0.4, r * 0.16, r * 0.18);
+  }
+
   function drawSub(ctx, r, body, dark, light) {
     ctx.fillStyle = dark;
     ctx.beginPath();
@@ -929,6 +983,7 @@
       case 'bomber': drawBomber(ctx, r, col.main, col.dark, col.light); break;
       case 'boat': drawBoat(ctx, r, col.main, col.dark, col.light); break;
       case 'ship': drawShip(ctx, r, col.main, col.dark, col.light); drawTurret(ctx, r, fake, col.main, col.dark, col.light, 0); break;
+      case 'carrier': drawCarrier(ctx, r, col.main, col.dark, col.light); break;
       case 'sub': drawSub(ctx, r, col.main, col.dark, col.light); break;
       default: drawTank(ctx, r, col.main, col.dark, col.light); drawTurret(ctx, r, fake, col.main, col.dark, col.light, 0); break;
     }
