@@ -16,7 +16,7 @@
 
   /* ============================ Unit ============================ */
 
-  function Unit(type, team, x, y) {
+  function Unit(type, team, x, y, rand) {
     this.id = nextId++;
     this.type = type;
     this.team = team;
@@ -33,16 +33,19 @@
     this.turret = this.hdg;
     this.speed = type.move === 'fixedwing' ? type.speed : 0;
 
+    /* Every random value here comes from the battle's seeded generator, never
+     * Math.random — the initial stagger of thinking, pathing and weapon cooldowns
+     * feeds straight into the outcome, so a replay would otherwise diverge. */
     this.target = null;
-    this.thinkIn = Math.random() * 0.4;
-    this.pathIn = Math.random() * 0.6;
+    this.thinkIn = rand() * 0.4;
+    this.pathIn = rand() * 0.6;
     this.path = null;
     this.pathStep = 0;
     this.pathGoalX = 0; this.pathGoalY = 0;
     this.stuck = 0;
 
     this.weapons = type.weapons.map(function (w) {
-      return { def: w, cd: Math.random() * w.cd, salvoLeft: 0, salvoTimer: 0, target: null };
+      return { def: w, cd: rand() * w.cd, salvoLeft: 0, salvoTimer: 0, target: null };
     });
 
     /* Carriers track the aircraft they have in the air, plus a finite pool of
@@ -52,7 +55,7 @@
     this.launchTimer = 0;
 
     /* Visual-only state the renderer reads. */
-    this.rotor = Math.random() * U.TAU;
+    this.rotor = rand() * U.TAU;
     this.recoil = 0;
     this.flash = 0;
     this.wake = 0;
@@ -104,7 +107,9 @@
 
   /* ============================ Battle =========================== */
 
-  function Battle(terrain, armies) {
+  /* `seed` makes a battle reproducible: the same terrain, armies and seed always
+   * play out identically, which is what lets a replay actually be a replay. */
+  function Battle(terrain, armies, seed) {
     this.terrain = terrain;
     this.units = [];
     this.projectiles = [];
@@ -122,13 +127,14 @@
     this.pathQueue = [];
     this.startValue = [0, 0];
     this.lostValue = [0, 0];
-    this.rand = U.rng(0x1234 ^ (terrain.seed >>> 0));
+    this.seed = (seed != null ? seed : (0x1234 ^ terrain.seed)) >>> 0;
+    this.rand = U.rng(this.seed);
 
     const self = this;
     armies.forEach(function (army, team) {
       army.forEach(function (entry) {
         const type = Units.TYPES[entry.type];
-        const u = new Unit(type, team, entry.x, entry.y);
+        const u = new Unit(type, team, entry.x, entry.y, self.rand);
         self.units.push(u);
         self.startValue[team] += type.cost;
       });
@@ -150,7 +156,7 @@
       const spread = carrier.wing.length + i;
       const a = carrier.hdg + (spread % 2 === 0 ? 0.7 : -0.7) - Math.PI * (spread % 4) * 0.12;
       const d = carrier.radius + 34;
-      const u = new Unit(type, carrier.team, carrier.x + Math.cos(a) * d, carrier.y + Math.sin(a) * d);
+      const u = new Unit(type, carrier.team, carrier.x + Math.cos(a) * d, carrier.y + Math.sin(a) * d, this.rand);
       u.hdg = a;
       u.turret = a;
       u.speed = type.speed * 0.6;
@@ -297,6 +303,33 @@
     if (!best) u.thinkIn = 1.0 + this.rand() * 0.5;
 
     u.target = best;
+    this.assignWeaponTargets(u);
+  };
+
+  /* Gives each weapon its own target when the unit's primary is something that
+   * weapon cannot engage. Sharing one target across every mount meant a warship
+   * locked onto the nearest aircraft and left its main battery — which cannot
+   * shoot at aircraft — silent for the whole battle. */
+  Battle.prototype.assignWeaponTargets = function (u) {
+    for (let i = 0; i < u.weapons.length; i++) {
+      const w = u.weapons[i];
+      const d = w.def;
+      if (d.kind === 'repair') { w.target = u.target; continue; }
+
+      if (u.target && (d.targets & u.target.domain)) { w.target = u.target; continue; }
+
+      const near = this.hash.query(u.x, u.y, d.range * 1.3, this.scratch);
+      let best = null, bestD = Infinity;
+      for (let k = 0; k < near.length; k++) {
+        const e = near[k];
+        if (!e.alive || e.team === u.team) continue;
+        if (!(d.targets & e.domain)) continue;
+        if (!this.canSee(u, e)) continue;
+        const dd = U.dist2(u.x, u.y, e.x, e.y);
+        if (dd < bestD) { bestD = dd; best = e; }
+      }
+      w.target = best;
+    }
   };
 
   Battle.prototype.findRepairTarget = function (u) {
@@ -573,7 +606,9 @@
       w.cd -= dt;
       if (w.cd > 0) continue;
 
-      const tgt = u.target;
+      /* This mount's own target, which is the unit's primary whenever that mount
+       * can engage it (see assignWeaponTargets). */
+      const tgt = w.target;
       if (!tgt || !tgt.alive) continue;
 
       if (d.kind === 'repair') {
@@ -593,14 +628,16 @@
        * weapons get a much wider arc — they steer themselves, and a boresight
        * gate made air-launched missiles nearly unusable, since a fixed-wing
        * aircraft's "turret" is locked to its heading. */
-      if (d.kind !== 'shell') {
+      /* Only the mount the turret is actually slewing to is arc-limited. A mount
+       * engaging its own secondary target (a ship's AA battery while the main gun
+       * tracks a surface contact) is a separate mount and trains independently. */
+      if (d.kind !== 'shell' && tgt === u.target) {
         const want = Math.atan2(tgt.y - u.y, tgt.x - u.x);
         const arc = (d.kind === 'missile' || d.kind === 'torpedo') ? 1.3 : 0.3;
         if (Math.abs(U.angleDiff(u.turret, want)) > arc) continue;
       }
 
       w.cd = d.cd;
-      w.target = tgt;
       if (d.salvo > 1) {
         w.salvoLeft = d.salvo - 1;
         w.salvoTimer = d.salvoDelay;

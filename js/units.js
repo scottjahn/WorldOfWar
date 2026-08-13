@@ -94,7 +94,7 @@
       speed: 44, radius: 9, shape: 'infantry', turnRate: 5,
       role: 'Anti-armour infantry',
       desc: 'Rocket launchers that punch far above their price against tanks. Fragile, and still outranged by a real gun.',
-      weapons: [{ name: 'Rocket Launcher', kind: 'missile', dmg: 140, pen: 75, range: 310, cd: 3.0, speed: 300, splash: 18, turnRate: 1.6, targets: GROUND, color: '#ffb066' }]
+      weapons: [{ name: 'Rocket Launcher', kind: 'missile', dmg: 140, pen: 75, range: 350, cd: 2.7, speed: 300, splash: 18, turnRate: 1.6, targets: GROUND, color: '#ffb066' }]
     }),
 
     mortar: unit({
@@ -319,7 +319,10 @@
       weapons: [
         { name: 'Phoenix AAM', kind: 'missile', dmg: 230, pen: 92, range: 620, cd: 4.0, speed: 540, turnRate: 3.6, splash: 16, targets: AIR, color: '#9fe8ff' },
         { name: 'Zuni Rockets', kind: 'missile', dmg: 95, pen: 58, range: 300, cd: 4.5, salvo: 2, salvoDelay: 0.14, speed: 400, turnRate: 2.2, splash: 20, targets: GROUND, color: '#ffa860' },
-        { name: '20mm Cannon', dmg: 24, pen: 34, range: 320, cd: 0.07, spread: 0.035, targets: ALL, color: '#ffe27a', tracerWidth: 1.5 }
+        /* Air-to-air only. A cannon that also strafed ships put ~110 dps through
+         * battleship armour per aircraft, which let a carrier group delete a fleet
+         * in seconds — the rockets are the Tomcat's surface weapon. */
+        { name: '20mm Cannon', dmg: 24, pen: 34, range: 320, cd: 0.07, spread: 0.035, targets: AIR, color: '#ffe27a', tracerWidth: 1.5 }
       ]
     }),
 

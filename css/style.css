@@ -342,6 +342,7 @@ html, body {
 .panel h2.win-draw { color: var(--dim); }
 
 .lede { color: var(--dim); margin-bottom: 18px; }
+.seed { font-family: ui-monospace, Consolas, monospace; font-size: 12px; opacity: 0.7; }
 
 .section-label {
   font-size: 11px;

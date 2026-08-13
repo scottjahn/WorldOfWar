@@ -338,10 +338,16 @@
 
   /* =========================== battle ============================ */
 
-  Game.prototype.startBattle = function () {
+  /* `seed` replays a previous battle exactly; omit it for a fresh one. */
+  Game.prototype.startBattle = function (seed) {
     this.savedArmies = [this.armies[0].slice(), this.armies[1].slice()];
-    this.battle = new W.Battle(this.terrain, this.armies);
+    this.battleSeed = seed != null ? (seed >>> 0) : ((Math.random() * 0xffffffff) >>> 0);
+    this.battle = new W.Battle(this.terrain, this.armies, this.battleSeed);
     this.phase = 'battle';
+    /* Must clear here, not just on leaving the battle phase: "Replay battle" goes
+     * straight from battle to battle, and a stale flag suppressed the result screen
+     * for every battle after the first. */
+    this.resultShown = false;
     this.paused = false;
     this.speed = 1;
     this.placingType = null;
@@ -362,10 +368,11 @@
     this.ui.refreshTallies();
   };
 
+  /* Same armies, same seed — the replay plays out shot for shot as it did before. */
   Game.prototype.restartBattle = function () {
     if (!this.savedArmies) return;
     this.armies = [this.savedArmies[0].slice(), this.savedArmies[1].slice()];
-    this.startBattle();
+    this.startBattle(this.battleSeed);
   };
 
   Game.prototype.togglePause = function () {
@@ -388,7 +395,8 @@
     const cls = winner === 0 ? 'win-blue' : winner === 1 ? 'win-red' : 'win-draw';
 
     let html = '<h2 class="' + cls + '">' + title + '</h2>';
-    html += '<p class="lede">' + W.UI.esc(b.reason) + ' · ' + formatTime(b.time) + '</p>';
+    html += '<p class="lede">' + W.UI.esc(b.reason) + ' · ' + formatTime(b.time) +
+      ' · <span class="seed">seed ' + b.seed.toString(16) + '</span></p>';
     html += '<div class="result-grid">';
     html += '<div class="result-col"><div class="result-team blue">Blue</div>' +
       resultRow('Survivors', b.aliveUnits(0) + ' / ' + countTeam(b, 0)) +
@@ -462,15 +470,16 @@
       if (this.accumulator > W.Battle.DT * 6) this.accumulator = 0;
 
       this.ui.refreshTallies();
-
-      if (this.battle.over && !this.resultShown) {
-        this.resultShown = true;
-        const b = this.battle;
-        /* Let the last explosions finish before the summary covers the field. */
-        setTimeout(function () { if (self.battle === b) self.showResult(); }, 1200);
-      }
     }
-    if (this.phase !== 'battle') this.resultShown = false;
+
+    /* Kept outside the stepping block above: that block is skipped once the battle
+     * is over (and while paused), so a result detected there could be missed. */
+    if (this.phase === 'battle' && this.battle && this.battle.over && !this.resultShown) {
+      this.resultShown = true;
+      const finished = this.battle;
+      /* Let the last explosions finish before the summary covers the field. */
+      setTimeout(function () { if (self.battle === finished) self.showResult(); }, 1200);
+    }
 
     /* In hotseat, each commander only ever sees their own army during placement,
      * and nothing at all while the device is being handed over. */

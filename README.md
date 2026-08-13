@@ -50,6 +50,15 @@ reads `???` until the battle starts. Deployments are only revealed when the shoo
 A battle ends when one side is wiped out. If 240 seconds pass, the winner is whoever has
 more surviving army value — so a stalemate across impassable water still resolves.
 
+Battles are **deterministic**. Every random choice in the simulation comes from one seeded
+generator, so the same armies, terrain and seed always play out identically, shot for shot.
+**Replay battle** reuses the seed, which makes a replay a genuine replay rather than a fresh
+roll of the dice; the seed is shown on the result screen. Fighting again after **Edit armies**
+draws a new seed, so you still get variety when you want it.
+
+The guarantee holds on the same device and browser. Different JavaScript engines can round
+trigonometry a hair differently, so a seed is not promised to reproduce across browsers.
+
 ## The combat model
 
 Damage is `dmg × pen / (pen + armor)`, floored at 6%. That single relationship is what makes
@@ -79,10 +88,12 @@ Other systems that shape fights:
   sold separately and cost nothing extra; the carrier's price is the whole package. It has no
   surface armament at all, so sinking it both removes the ship and stops the replacements.
 
-Some counters worth knowing: AT Teams beat medium tanks but lose to heavies; jeeps overrun
-artillery; flak tanks delete helicopters; SAMs delete anything with wings; corvettes outrange
-destroyers; patrol boats hunt submarines; and carriers own the air but die to anything that
-gets within gun range.
+Counters worth knowing, each measured over repeated seeded battles at equal cost: AT Teams
+beat medium tanks but lose to heavies; rifle swarms overrun light tanks; jeeps overrun
+artillery; flak tanks and SAMs shred anything with wings; destroyers and patrol boats hunt
+submarines; battleships beat destroyers, and destroyers beat corvettes. Carriers own the air
+and grind down smaller warships through sheer attrition, but a battleship outranges the air
+group entirely and sinks them.
 
 ## Layout
 
@@ -148,6 +159,11 @@ The app is already a PWA (`manifest.webmanifest` + `sw.js` + icons), so:
 
 - Direct-fire weapons ignore line of sight, so units can shoot over rock outcrops.
 - Splash damage never harms friendlies, which keeps artillery usable but is generous.
-- Battles are not deterministic across machines (they use `Math.random` for tie-breaks), so
-  there is no replay-by-seed.
+- Submarines underperform their description against capital ships. They advance to their own
+  firing range, which walks them inside the detection radius of a battleship that is blindly
+  steaming toward them; a stealth unit really ought to back off when something gets close
+  enough to spot it.
+- Naval doctrines win disproportionately on water-heavy maps, because land units simply have
+  no way to touch a ship.
+- Seeds reproduce a battle on the same browser, not necessarily across different ones.
 - No sound.
