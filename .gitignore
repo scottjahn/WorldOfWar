@@ -1,0 +1,12 @@
+# Local tooling / editor state
+.claude/
+.vscode/
+.idea/
+
+# OS cruft
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Not used by the game, but keeps a stray install from being committed
+node_modules/

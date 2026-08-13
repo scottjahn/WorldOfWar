@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#10151c">
+<title>World of War — Tactical Battle Simulator</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div id="app">
+
+  <canvas id="game"></canvas>
+
+  <!-- ===== Top bar ===== -->
+  <header id="topbar">
+    <div class="tb-left">
+      <button id="btnMenu" class="icon-btn" title="Menu">☰</button>
+      <div id="phaseLabel">Setup</div>
+    </div>
+
+    <div class="tb-center">
+      <div class="army-tally team-a" id="tallyA">
+        <span class="tally-name">BLUE</span>
+        <span class="tally-cost" id="costA">0</span>
+        <span class="tally-sub" id="subA">0 units</span>
+      </div>
+      <div class="vs">VS</div>
+      <div class="army-tally team-b" id="tallyB">
+        <span class="tally-name">RED</span>
+        <span class="tally-cost" id="costB">0</span>
+        <span class="tally-sub" id="subB">0 units</span>
+      </div>
+    </div>
+
+    <div class="tb-right">
+      <div id="battleControls" class="hidden">
+        <button id="btnPause" class="icon-btn" title="Pause / Resume">❚❚</button>
+        <button id="btnSpeed" class="icon-btn wide" title="Battle speed">1×</button>
+        <button id="btnRestart" class="icon-btn" title="Replay battle">⟲</button>
+      </div>
+      <button id="btnFit" class="icon-btn" title="Fit battlefield to screen">⤢</button>
+    </div>
+  </header>
+
+  <!-- ===== Placement action bar ===== -->
+  <div id="actionbar" class="hidden">
+    <div class="ab-budget">
+      <div class="budget-line">
+        <span id="budgetSpent">0</span><span class="dim"> / </span><span id="budgetCap">3000</span>
+      </div>
+      <div class="budget-track"><div id="budgetFill"></div></div>
+    </div>
+    <div class="ab-buttons">
+      <button id="btnUndo" class="btn ghost">Undo</button>
+      <button id="btnClear" class="btn ghost">Clear</button>
+      <button id="btnAuto" class="btn ghost">Auto-fill</button>
+      <button id="btnReady" class="btn primary">Ready</button>
+    </div>
+  </div>
+
+  <!-- ===== Roster ===== -->
+  <aside id="roster" class="hidden">
+    <div class="roster-handle" id="rosterHandle"><span></span></div>
+    <div class="roster-tabs">
+      <button class="tab active" data-domain="land">Land</button>
+      <button class="tab" data-domain="air">Air</button>
+      <button class="tab" data-domain="sea">Sea</button>
+    </div>
+    <div class="roster-list" id="rosterList"></div>
+    <div class="roster-detail" id="rosterDetail"></div>
+  </aside>
+
+  <!-- ===== Hint / toast ===== -->
+  <div id="toast"></div>
+
+  <!-- ===== Overlay screens ===== -->
+  <div id="overlay" class="hidden">
+    <div class="panel" id="overlayPanel"></div>
+  </div>
+
+</div>
+
+<script src="js/util.js"></script>
+<script src="js/units.js"></script>
+<script src="js/terrain.js"></script>
+<script src="js/sim.js"></script>
+<script src="js/ai.js"></script>
+<script src="js/render.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
