@@ -8,6 +8,6 @@
  * screen stops meaning anything.
  */
 (function (root) {
-  root.WOW_VERSION = '1.3.0';
-  root.WOW_BUILD = '2026-08-13';
+  root.WOW_VERSION = '1.4.0';
+  root.WOW_BUILD = '2026-08-14';
 })(typeof self !== 'undefined' ? self : this);

@@ -33,8 +33,34 @@
 
     const self = this;
     window.addEventListener('resize', function () { self.onResize(); });
+    /* Pasting a replay link while the game is already open only changes the
+     * fragment — the browser does not reload — so pick it up here too. */
+    window.addEventListener('hashchange', function () {
+      if (location.hash.indexOf('r=') < 0) return;
+      let loaded = false;
+      try {
+        loaded = self.loadFromHash();
+      } catch (e) {
+        loaded = false;
+      }
+      if (!loaded) self.ui.toast('That replay link could not be read');
+    });
     this.onResize();
-    this.openMenu();
+    /* A replay link goes straight into its battle; anything else opens the menu. */
+    let launched = false;
+    try {
+      launched = this.loadFromHash();
+    } catch (e) {
+      launched = false;
+    }
+    if (!launched) {
+      if (location.hash.indexOf('r=') >= 0) {
+        this.openMenu();
+        this.ui.toast('That replay link could not be read');
+      } else {
+        this.openMenu();
+      }
+    }
     requestAnimationFrame(function (t) { self.frame(t); });
   }
 
@@ -212,6 +238,9 @@
   Game.prototype.onHover = function (screenPos) {
     if (this.phase !== 'place') { this.ghost = null; this.hover = null; return; }
     const w = this.renderer.screenToWorld(screenPos.x, screenPos.y);
+    /* Same snap as placement, so the ghost sits exactly where the unit will land. */
+    w.x = Math.round(w.x);
+    w.y = Math.round(w.y);
     if (this.placingType) {
       this.ghost = { x: w.x, y: w.y, valid: this.placementError(this.placingType, w.x, w.y) === null };
       this.hover = null;
@@ -235,6 +264,11 @@
 
   Game.prototype.onTap = function (screenPos, isRight) {
     const world = this.renderer.screenToWorld(screenPos.x, screenPos.y);
+    /* Snap to whole world units. Units are 9–26 across on a 2400x1400 field, so
+     * this is invisible in play, and it lets a replay link store positions
+     * exactly rather than approximating them. */
+    world.x = Math.round(world.x);
+    world.y = Math.round(world.y);
     if (this.phase !== 'place') return;
     if (isRight) { this.removeAt(world); return; }
 
@@ -413,6 +447,10 @@
       resultRow('Value lost', U.formatCost(Math.round(b.lostValue[1]))) + '</div>';
     html += '</div>';
 
+    html += '<div class="share-row"><input id="ovLink" class="share-link" readonly>' +
+      '<button class="btn ghost" id="ovCopy">Copy link</button></div>';
+    html += '<p class="share-hint">Anyone who opens that link watches this exact battle.</p>';
+
     html += '<div class="overlay-actions">';
     html += '<button class="btn ghost" id="ovReplay">Replay battle</button>';
     html += '<button class="btn ghost" id="ovEdit">Edit armies</button>';
@@ -423,7 +461,89 @@
       panel.querySelector('#ovReplay').addEventListener('click', function () { self.restartBattle(); });
       panel.querySelector('#ovEdit').addEventListener('click', function () { self.backToPlacement(); });
       panel.querySelector('#ovMenu').addEventListener('click', function () { self.openMenu(); });
+
+      const input = panel.querySelector('#ovLink');
+      const copyBtn = panel.querySelector('#ovCopy');
+      let url = null;
+      try {
+        url = self.replayLink();
+      } catch (err) {
+        input.value = 'Could not build a link for this battle';
+        copyBtn.disabled = true;
+      }
+      if (url) {
+        input.value = url;
+        copyBtn.addEventListener('click', function () {
+          input.select();
+          const done = function () { self.ui.toast('Replay link copied'); };
+          /* Clipboard access needs a secure context and can still be refused, so
+           * the field stays on screen and selected as a manual fallback. */
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(url).then(done, function () {
+              self.ui.toast('Press Ctrl+C to copy the selected link');
+            });
+          } else {
+            self.ui.toast('Press Ctrl+C to copy the selected link');
+          }
+        });
+      }
     });
+  };
+
+  /* A shareable URL that reproduces the battle currently loaded. */
+  Game.prototype.replayLink = function () {
+    return W.Share.linkFor({
+      mapId: this.mapId,
+      terrainSeed: this.terrain.seed,
+      battleSeed: this.battleSeed,
+      budget: this.budget,
+      armies: this.savedArmies || this.armies
+    });
+  };
+
+  /* Rebuilds a battle from a link payload. Returns false if there was nothing
+   * usable in the URL, so the caller can fall back to the normal menu. */
+  Game.prototype.loadFromHash = function () {
+    let setup = null;
+    try {
+      setup = W.Share.fromHash(location.hash);
+    } catch (e) {
+      setup = null;
+    }
+    if (!setup) return false;
+    if (!setup.armies[0].length && !setup.armies[1].length) return false;
+
+    /* Validate against a throwaway terrain first. Checking after committing would
+     * leave a rejected link having already swapped the map and wiped the armies,
+     * stranding the player on an empty battlefield. */
+    let candidate;
+    try {
+      candidate = new W.Terrain(setup.mapId, setup.terrainSeed);
+    } catch (e) {
+      return false;
+    }
+    const bad = setup.armies.some(function (army) {
+      return army.some(function (e) {
+        const type = Units.TYPES[e.type];
+        return !type || type.hidden ||
+          e.x < 0 || e.y < 0 || e.x > candidate.width || e.y > candidate.height ||
+          !candidate.passable(type.domain, e.x, e.y);
+      });
+    });
+    if (bad) return false;
+
+    /* Everything checks out — now commit. */
+    this.mapId = setup.mapId;
+    this.seed = setup.terrainSeed;
+    this.budget = setup.budget || 3000;
+    this.buildTerrain();
+    this.armies = [setup.armies[0].slice(), setup.armies[1].slice()];
+    this.hotseat = false;
+    this.ui.hideOverlay();
+    this.ui.buildRoster();
+    this.startBattle(setup.battleSeed);
+    this.ui.toast('Replaying a shared battle');
+    return true;
   };
 
   function countTeam(b, team) {

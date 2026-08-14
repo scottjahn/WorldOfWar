@@ -56,8 +56,28 @@ generator, so the same armies, terrain and seed always play out identically, sho
 roll of the dice; the seed is shown on the result screen. Fighting again after **Edit armies**
 draws a new seed, so you still get variety when you want it.
 
-The guarantee holds on the same device and browser. Different JavaScript engines can round
-trigonometry a hair differently, so a seed is not promised to reproduce across browsers.
+The guarantee holds across devices and browsers too — see *Deterministic maths* below.
+
+### Replay links
+
+The result screen carries a link back to the battle you just watched. Anyone who opens it
+sees the same fight play out, shot for shot:
+
+```
+https://scottjahn.github.io/WorldOfWar/#r=AQEnOwnBrNMVorgLEgAMAAt…
+```
+
+The payload packs the map, the terrain seed, both armies and the battle seed — around 250
+characters for a small battle and 900 for a 12,000-point one. Everything else regenerates on
+the other end. Opening a link drops you straight into that battle, and **Edit armies** still
+works from there, so a link doubles as a way to share an army design.
+
+It lives in the URL *fragment* rather than a query string on purpose: the service worker
+caches by full URL, so `?r=…` would make every shared link a cache miss and force a network
+round trip before the game could start. A fragment is not part of the cache key.
+
+Placement snaps to whole world units so positions store exactly. Units are 9–26 across on a
+2400×1400 field, so the snap is invisible in play.
 
 ## The combat model
 
@@ -108,11 +128,14 @@ battle as one sample rather than proof.
 ```
 index.html            markup and panel structure
 css/style.css         dark tactical UI, responsive down to phones
+js/version.js         build identifier, shared by the page and the service worker
+js/dmath.js           engine-independent trig, so replays reproduce on any browser
 js/util.js            math, seeded RNG, value noise, binary heap, spatial hash
 js/units.js           the unit catalogue — every stat, weapon and cost
 js/terrain.js         map generation, passability, connectivity, A* pathfinding
 js/sim.js             the battle: targeting, movement, weapons, projectiles, damage
 js/ai.js              army generation (AI opponent and Auto-fill)
+js/share.js           packs a battle into a replay link, and unpacks it again
 js/render.js          canvas rendering, camera, unit artwork, effects
 js/ui.js              roster, tallies, overlays, pointer input
 js/main.js            phase machine and the frame loop
@@ -134,6 +157,26 @@ without ever consuming budget, which is why hidden and zero-cost types are filte
 
 Maps are the shaper functions in `Terrain.prototype.generate`. Add an entry to `Terrain.MAPS`
 and a branch there.
+
+### Deterministic maths
+
+IEEE-754 pins `+`, `-`, `*`, `/` and `sqrt` to a single correctly-rounded result, and
+JavaScript never fuses multiply-add, so those give bit-identical answers in every engine.
+`Math.sin`, `cos`, `atan2`, `hypot` and `pow` are **not** specified that way — each engine
+ships its own approximation, and over a four-minute battle those last-bit differences compound
+into visibly different outcomes.
+
+So the simulation uses `js/dmath.js` instead: range reduction plus Taylor series built purely
+from exactly-rounded operations. Measured against native `Math`, the worst error is 6.6e-10
+for `sin`, 6.3e-9 for `cos`, 3.8e-10 for `atan2` and 2.3e-13 for `hypot` — far tighter than
+anything the game can express. The one `Math.pow` call took a constant exponent, so it is now
+a hard-coded literal.
+
+**If you edit `js/sim.js`, use `M.sin` / `M.cos` / `M.atan2` / `M.hypot`, not `Math.*`.** A
+single native trig call is enough to break cross-browser replay links. `sqrt`, `abs`, `floor`,
+`round`, `min`, `max`, `imul` and `PI` are all exactly specified and safe to use directly.
+`js/render.js` deliberately keeps native `Math`: drawing never feeds back into the simulation,
+and native trig is faster.
 
 Two performance notes worth preserving if you edit the simulation:
 
@@ -193,5 +236,8 @@ The app is already a PWA (`manifest.webmanifest` + `sw.js` + icons), so:
   the same. Worth a price rise if you play a lot of naval battles.
 - Naval doctrines win disproportionately on water-heavy maps, because land units simply have
   no way to touch a ship.
-- Seeds reproduce a battle on the same browser, not necessarily across different ones.
+- Replay links encode the roster by index, so adding a unit is safe (append to `TYPE_WIRE` in
+  `js/share.js`) but reordering or removing one silently invalidates every existing link.
+- Changing unit stats changes how old links play out. The link stores the battle, not the
+  balance patch it was fought under.
 - No sound.

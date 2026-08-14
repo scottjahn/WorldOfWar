@@ -7,10 +7,16 @@
 
   const U = W.Util;
   const Units = W.Units;
+  /* Deterministic trig. Native Math.sin/cos/atan2/hypot vary between engines,
+   * which would make a shared replay link reproduce only on the same browser. */
+  const M = W.DMath;
   const LAND = Units.LAND, SEA = Units.SEA, AIR = Units.AIR;
 
   const DT = 1 / 60;
   const MAX_BATTLE_TIME = 240;   // seconds before the battle is judged on points
+
+  /* Math.pow(0.06, DT), pinned to a literal so it cannot vary between engines. */
+  const DRAG_PER_TICK = 0.9541921825457205;
 
   /* How close a unit must be to see a submerged submarine. Shared by the
    * visibility check and by the stealth stand-off logic, which needs to know the
@@ -118,8 +124,8 @@
     this.life = 0;
 
     const dx = aimX - x, dy = aimY - y;
-    const d = Math.max(1, Math.hypot(dx, dy));
-    this.hdg = Math.atan2(dy, dx);
+    const d = Math.max(1, M.hypot(dx, dy));
+    this.hdg = M.atan2(dy, dx);
 
     if (this.kind === 'shell' || this.kind === 'bomb') {
       /* Ballistic: fly to a fixed ground point over a travel time set by distance. */
@@ -186,7 +192,7 @@
       const spread = carrier.wing.length + i;
       const a = carrier.hdg + (spread % 2 === 0 ? 0.7 : -0.7) - Math.PI * (spread % 4) * 0.12;
       const d = carrier.radius + 34;
-      const u = new Unit(type, carrier.team, carrier.x + Math.cos(a) * d, carrier.y + Math.sin(a) * d, this.rand);
+      const u = new Unit(type, carrier.team, carrier.x + M.cos(a) * d, carrier.y + M.sin(a) * d, this.rand);
       u.hdg = a;
       u.turret = a;
       u.speed = type.speed * 0.6;
@@ -420,8 +426,8 @@
         gx = tgt.x; gy = tgt.y;
       } else if (so.min > 0 && d < so.min) {
         /* Inside minimum range — back away from the target. */
-        const a = Math.atan2(u.y - tgt.y, u.x - tgt.x);
-        gx = u.x + Math.cos(a) * 120; gy = u.y + Math.sin(a) * 120;
+        const a = M.atan2(u.y - tgt.y, u.x - tgt.x);
+        gx = u.x + M.cos(a) * 120; gy = u.y + M.sin(a) * 120;
       } else {
         wantMove = false;
         gx = u.x; gy = u.y;
@@ -472,7 +478,7 @@
       wpX = cur.x; wpY = cur.y;
     }
 
-    const desiredHdg = Math.atan2(wpY - u.y, wpX - u.x);
+    const desiredHdg = M.atan2(wpY - u.y, wpX - u.x);
     const turn = u.type.turnRate * dt;
     u.hdg = U.turnToward(u.hdg, desiredHdg, turn);
 
@@ -484,8 +490,8 @@
 
     u.speed = U.lerp(u.speed, targetSpeed, U.clamp(dt * 3.2, 0, 1));
 
-    let nx = u.x + Math.cos(u.hdg) * u.speed * dt;
-    let ny = u.y + Math.sin(u.hdg) * u.speed * dt;
+    let nx = u.x + M.cos(u.hdg) * u.speed * dt;
+    let ny = u.y + M.sin(u.hdg) * u.speed * dt;
 
     const sep = this.separation(u, dt);
     nx += sep.x; ny += sep.y;
@@ -509,26 +515,29 @@
   /* Helicopters and drones: free 2D movement, hold a standoff, ignore terrain. */
   Battle.prototype.moveHover = function (u, dt, gx, gy, wantMove) {
     const ax = gx - u.x, ay = gy - u.y;
-    const d = Math.max(1, Math.hypot(ax, ay));
+    const d = Math.max(1, M.hypot(ax, ay));
     const accel = u.type.accel;
 
     if (wantMove) {
       u.vx += (ax / d) * accel * dt;
       u.vy += (ay / d) * accel * dt;
     }
-    /* Constant drag gives a floaty, damped feel and caps top speed. */
-    const drag = Math.pow(0.06, dt);
+    /* Constant drag gives a floaty, damped feel and caps top speed.
+     * dt is always the fixed timestep here, so this is Math.pow(0.06, 1/60)
+     * hard-coded — Math.pow is implementation-defined, and a literal keeps the
+     * value identical in every engine. */
+    const drag = DRAG_PER_TICK;
     u.vx *= drag; u.vy *= drag;
 
-    const sp = Math.hypot(u.vx, u.vy);
+    const sp = M.hypot(u.vx, u.vy);
     if (sp > u.type.speed) { u.vx = u.vx / sp * u.type.speed; u.vy = u.vy / sp * u.type.speed; }
 
     const sep = this.separation(u, dt);
     u.x = U.clamp(u.x + u.vx * dt + sep.x, 8, this.terrain.width - 8);
     u.y = U.clamp(u.y + u.vy * dt + sep.y, 8, this.terrain.height - 8);
-    u.speed = Math.hypot(u.vx, u.vy);
+    u.speed = M.hypot(u.vx, u.vy);
 
-    if (u.speed > 6) u.hdg = U.turnToward(u.hdg, Math.atan2(u.vy, u.vx), u.type.turnRate * dt * 1.6);
+    if (u.speed > 6) u.hdg = U.turnToward(u.hdg, M.atan2(u.vy, u.vx), u.type.turnRate * dt * 1.6);
     this.aimTurret(u, dt);
   };
 
@@ -554,11 +563,11 @@
          * the target to shoot. Breaking to just outside weapon range keeps the
          * attack cycle short instead of flying halfway across the map. */
         if (!u.orbitDir) u.orbitDir = this.rand() < 0.5 ? -1 : 1;
-        const away = Math.atan2(u.y - tgt.y, u.x - tgt.x);
+        const away = M.atan2(u.y - tgt.y, u.x - tgt.x);
         const breakR = attackRange * 1.15;
         const ang = away + u.orbitDir * 0.75;
-        aimX = tgt.x + Math.cos(ang) * breakR;
-        aimY = tgt.y + Math.sin(ang) * breakR;
+        aimX = tgt.x + M.cos(ang) * breakR;
+        aimY = tgt.y + M.sin(ang) * breakR;
       } else {
         /* Run straight in so the guns bear. */
         aimX = tgt.x; aimY = tgt.y;
@@ -575,11 +584,11 @@
     if (u.y < m) aimY = Math.max(aimY, m * 3);
     if (u.y > this.terrain.height - m) aimY = Math.min(aimY, this.terrain.height - m * 3);
 
-    const want = Math.atan2(aimY - u.y, aimX - u.x);
+    const want = M.atan2(aimY - u.y, aimX - u.x);
     u.hdg = U.turnToward(u.hdg, want, u.type.turnRate * dt);
     u.speed = U.lerp(u.speed, u.type.speed, dt * 1.5);
-    u.x += Math.cos(u.hdg) * u.speed * dt;
-    u.y += Math.sin(u.hdg) * u.speed * dt;
+    u.x += M.cos(u.hdg) * u.speed * dt;
+    u.y += M.sin(u.hdg) * u.speed * dt;
     u.turret = u.hdg;
   };
 
@@ -610,7 +619,7 @@
       u.turret = U.turnToward(u.turret, u.hdg, dt * 1.5);
       return;
     }
-    const want = Math.atan2(u.target.y - u.y, u.target.x - u.x);
+    const want = M.atan2(u.target.y - u.y, u.target.x - u.x);
     u.turret = U.turnToward(u.turret, want, dt * 3.4);
   };
 
@@ -662,7 +671,7 @@
        * engaging its own secondary target (a ship's AA battery while the main gun
        * tracks a surface contact) is a separate mount and trains independently. */
       if (d.kind !== 'shell' && tgt === u.target) {
-        const want = Math.atan2(tgt.y - u.y, tgt.x - u.x);
+        const want = M.atan2(tgt.y - u.y, tgt.x - u.x);
         const arc = (d.kind === 'missile' || d.kind === 'torpedo') ? 1.3 : 0.3;
         if (Math.abs(U.angleDiff(u.turret, want)) > arc) continue;
       }
@@ -679,8 +688,8 @@
   Battle.prototype.fireOne = function (u, w, tgt) {
     const d = w.def;
     const muzzle = u.radius + 4;
-    const sx = u.x + Math.cos(u.turret) * muzzle;
-    const sy = u.y + Math.sin(u.turret) * muzzle;
+    const sx = u.x + M.cos(u.turret) * muzzle;
+    const sy = u.y + M.sin(u.turret) * muzzle;
 
     /* Lead the target based on flight time. */
     let aimX = tgt.x, aimY = tgt.y;
@@ -693,10 +702,10 @@
 
     /* Scatter: rotate the aim point around the shooter by a random spread angle. */
     if (d.spread > 0) {
-      const a = Math.atan2(aimY - sy, aimX - sx) + (this.rand() * 2 - 1) * d.spread;
+      const a = M.atan2(aimY - sy, aimX - sx) + (this.rand() * 2 - 1) * d.spread;
       const r = U.dist(sx, sy, aimX, aimY);
-      aimX = sx + Math.cos(a) * r;
-      aimY = sy + Math.sin(a) * r;
+      aimX = sx + M.cos(a) * r;
+      aimY = sy + M.sin(a) * r;
     }
 
     this.projectiles.push(new Projectile(u, d, sx, sy, tgt, aimX, aimY));
@@ -708,7 +717,7 @@
 
   function velocityOf(u) {
     if (u.type.move === 'hover') return { x: u.vx, y: u.vy };
-    return { x: Math.cos(u.hdg) * u.speed, y: Math.sin(u.hdg) * u.speed };
+    return { x: M.cos(u.hdg) * u.speed, y: M.sin(u.hdg) * u.speed };
   }
 
   /* -------------------------- projectiles ------------------------- */
@@ -727,17 +736,17 @@
         p.x = U.lerp(p.sx, p.gx, k);
         p.y = U.lerp(p.sy, p.gy, k);
         /* Visual arc height only; impact is decided by the ground point. */
-        p.h = Math.sin(k * Math.PI) * p.arc;
+        p.h = M.sin(k * Math.PI) * p.arc;
         if (k >= 1) { this.detonate(p, p.gx, p.gy); p.dead = true; }
         continue;
       }
 
       if (p.kind === 'missile' || p.kind === 'torpedo') {
         if (p.target && p.target.alive) {
-          const want = Math.atan2(p.target.y - p.y, p.target.x - p.x);
+          const want = M.atan2(p.target.y - p.y, p.target.x - p.x);
           p.hdg = U.turnToward(p.hdg, want, p.def.turnRate * dt);
-          p.vx = Math.cos(p.hdg) * p.def.speed;
-          p.vy = Math.sin(p.hdg) * p.def.speed;
+          p.vx = M.cos(p.hdg) * p.def.speed;
+          p.vy = M.sin(p.hdg) * p.def.speed;
         }
       }
 

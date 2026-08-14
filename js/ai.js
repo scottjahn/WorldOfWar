@@ -85,7 +85,9 @@
         if (U.dist2(o.x, o.y, x, y) < minD * minD) { clash = true; break; }
       }
       if (clash) continue;
-      return { x: x, y: y };
+      /* Whole world units, matching hand placement, so replay links round-trip
+       * these positions exactly. */
+      return { x: Math.round(x), y: Math.round(y) };
     }
     return null;
   }
