@@ -741,7 +741,12 @@
          * effect on some later visit the player never knowingly makes. */
         if (hadController && !reloading) { reloading = true; location.reload(); }
       });
-      navigator.serviceWorker.register('sw.js').then(function (reg) {
+      /* updateViaCache 'none' matters here. The default is 'imports', which fetches
+       * sw.js past the HTTP cache but its importScripts'd js/version.js *through*
+       * it — and GitHub Pages serves assets with a cache lifetime. Since the cache
+       * name is derived from that version, a stale copy would delay the update by
+       * however long the host says to cache for. */
+      navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(function (reg) {
         /* Ask outright rather than waiting for the browser's own update check. */
         reg.update();
       }).catch(function () { /* offline support is optional */ });

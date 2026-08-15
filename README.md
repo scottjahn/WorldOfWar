@@ -256,6 +256,26 @@ To force a clean slate on a device that is stuck, open devtools → Application 
 Workers → Unregister, then reload. On Android Chrome, clear the site's storage from the
 padlock menu.
 
+### How an installed copy updates itself
+
+Bumping `WOW_VERSION` is what drives this, so do not skip it.
+
+`sw.js` pulls in `js/version.js` with `importScripts`, and names its cache after the version.
+The browser byte-compares imported scripts during its update check, so a version bump counts
+as a changed worker even when `sw.js` itself is untouched. The new worker installs,
+`skipWaiting` and `clients.claim` hand it control, the page sees `controllerchange` and
+reloads once, and the old cache is deleted on activation. The result is that a running copy
+moves to the new build **as a unit** — you never end up with new HTML calling into old
+scripts.
+
+Registration passes `updateViaCache: 'none'`. Without it the default is `'imports'`, which
+fetches `sw.js` past the HTTP cache but `version.js` *through* it — and Pages serves
+`Cache-Control: max-age=600`, so an update could sit invisible for ten minutes.
+
+If you deploy **without** bumping the version, files still refresh individually through the
+network-first fetch handler, but there is no atomic swap: on a poor connection some files can
+come from the network and others from cache, which is how a half-updated load happens.
+
 ## Packaging for Android
 
 The app is already a PWA — manifest, service worker and icons all check out, and it is served
