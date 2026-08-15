@@ -1,11 +1,16 @@
 {
+  "id": "/WorldOfWar/",
   "name": "World of War — Tactical Battle Simulator",
   "short_name": "World of War",
-  "description": "A 2D top-down autobattler. Build an army of land, air and sea vehicles, deploy it, and watch the battle resolve itself.",
+  "description": "A 2D top-down autobattler. Build an army, deploy it, and watch the battle resolve itself. Includes the Earth and Animals editions.",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["games", "strategy"],
   "start_url": "./index.html",
   "scope": "./",
   "display": "fullscreen",
-  "orientation": "landscape",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "any",
   "background_color": "#0a0f15",
   "theme_color": "#10151c",
   "icons": [

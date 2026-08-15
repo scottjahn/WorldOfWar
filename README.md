@@ -258,20 +258,82 @@ padlock menu.
 
 ## Packaging for Android
 
-The app is already a PWA (`manifest.webmanifest` + `sw.js` + icons), so:
+The app is already a PWA — manifest, service worker and icons all check out, and it is served
+over HTTPS at <https://scottjahn.github.io/WorldOfWar/>.
 
-- **Install directly** — open it in Chrome on Android and use "Add to Home screen". It then
-  runs fullscreen and works offline.
-- **Build an APK** — host the folder over HTTPS and run it through
-  [PWABuilder](https://www.pwabuilder.com), which wraps it as a signed APK/AAB.
-- **Capacitor** — for a store build with native shell control:
+**No install at all:** open that URL in Chrome on Android and use *Add to Home screen*. You
+get a fullscreen icon that works offline. If you only want it on your own phone, stop here.
 
-  ```bash
-  npm install @capacitor/cli @capacitor/core @capacitor/android
-  npx cap init "World of War" com.example.worldofwar --web-dir=.
-  npx cap add android
-  npx cap open android
-  ```
+### Route A — PWABuilder (no toolchain)
+
+[PWABuilder](https://www.pwabuilder.com) is a website: paste the URL, press **Package for
+stores → Android**, and it hands back a signed APK plus a `signing.keystore`.
+
+- Choose **APK** to sideload, or **AAB** for the Play Store.
+- **Keep the keystore and its passwords.** Android will refuse any future update signed with
+  a different key, and it cannot be recovered.
+- Install with `adb install app-release-signed.apk`, or copy the APK to the phone and open it
+  (allow "install unknown apps" for your file manager).
+
+**The one thing that will bite you.** PWABuilder produces a Trusted Web Activity — a Chrome
+window with no browser UI. Android only hides the address bar if it can verify the app owns
+the domain, by fetching:
+
+```
+https://scottjahn.github.io/.well-known/assetlinks.json
+```
+
+That is the **domain root**, not this project's subpath — and it currently 404s, because on
+GitHub Pages the root is served by a separate repo named exactly `scottjahn.github.io`. Until
+that file exists the app still installs and plays, but with a URL bar across the top.
+
+To fix it, create a repo called `scottjahn.github.io`, enable Pages on it, and commit the
+`assetlinks.json` that PWABuilder gives you (it is in the download, under
+`assetlinks.json` / "Digital Asset Links"):
+
+```
+scottjahn.github.io/
+  .nojekyll
+  .well-known/assetlinks.json
+```
+
+Verification is cached, so reinstall the app after publishing it.
+
+### Route B — Capacitor (files bundled inside the APK)
+
+Worth it if you want the game to work offline from first launch with no network at all, and
+no domain verification. The cost is a real Android toolchain, none of which is installed here:
+**JDK 17** and **Android Studio** (SDK + build tools, a few GB).
+
+```bash
+npm install @capacitor/cli @capacitor/core @capacitor/android
+```
+
+```bash
+npx cap init "World of War" io.github.scottjahn.worldofwar --web-dir=dist
+```
+
+Copy the game files into `dist/` (everything except `.git`, `node_modules`, `android` and
+`dist` itself), then:
+
+```bash
+npx cap add android
+```
+
+```bash
+npx cap open android
+```
+
+Build from Android Studio, or `cd android && ./gradlew assembleDebug`.
+
+With Capacitor the service worker is unnecessary — the files are local already — but it does
+no harm.
+
+### Which one
+
+PWABuilder unless you specifically need offline-from-first-launch or a customised native
+shell. It takes minutes instead of an afternoon, and updates ship by pushing to Pages rather
+than by rebuilding the app.
 
 ## Known limits
 

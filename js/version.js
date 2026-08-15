@@ -10,6 +10,6 @@
 (function (root) {
   /* Major version tracks editions: 2.x ships Earth + Animals. Each new edition
    * bumps the major number. */
-  root.WOW_VERSION = '2.0.0';
+  root.WOW_VERSION = '2.0.1';
   root.WOW_BUILD = '2026-08-14';
 })(typeof self !== 'undefined' ? self : this);
