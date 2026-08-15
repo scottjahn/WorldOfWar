@@ -17,16 +17,19 @@
   const SPEED_MUL = [1, 1, 0.9, 0.6, 0];
 
   const TILE = 20;
-  const COLS = 120;
-  const ROWS = 70;
 
-  const MAPS = [
-    { id: 'plains', name: 'Open Plains', blurb: 'Rolling ground with scattered ponds. Armour country — navies have almost nowhere to sail.' },
-    { id: 'coast', name: 'Coastal Assault', blurb: 'A wide sea along the southern edge. Fleets shell the shore while armies fight inland.' },
-    { id: 'river', name: 'River Crossing', blurb: 'A river splits the field east to west. Land forces are cut in two; boats own the middle.' },
-    { id: 'strait', name: 'The Strait', blurb: 'A narrow land bridge between two seas. Naval power on both flanks, a brutal ground chokepoint.' },
-    { id: 'archipelago', name: 'Archipelago', blurb: 'Scattered islands in open water. Ground units are stranded — build a navy or an air force.' }
-  ];
+  /* Field size and map list belong to the active edition — Animals plays on a much
+   * smaller board. MAPS is mutated in place so modules that captured it stay valid. */
+  let COLS = 120;
+  let ROWS = 70;
+  const MAPS = [];
+
+  Terrain.setEdition = function (ed) {
+    COLS = ed.cols || 120;
+    ROWS = ed.rows || 70;
+    MAPS.length = 0;
+    (ed.maps || []).forEach(function (m) { MAPS.push(m); });
+  };
 
   function Terrain(mapId, seed) {
     this.mapId = mapId;
@@ -39,6 +42,7 @@
     this.tiles = new Uint8Array(COLS * ROWS);
 
     const def = MAPS.filter(function (m) { return m.id === mapId; })[0] || MAPS[0];
+    this.def = def;
     this.name = def.name;
     this.blurb = def.blurb;
 
@@ -52,34 +56,15 @@
     const noise = U.makeNoise(this.seed);
     const rand = U.rng(this.seed ^ 0x9e3779b9);
     const cols = this.cols, rows = this.rows, t = this.tiles;
-    const kind = this.mapId;
+    /* Each map supplies its own water shape, so an edition can add maps — or have
+     * none with any water at all — without touching this file. */
+    const shape = (this.def && this.def.water) || function () { return false; };
 
     for (let y = 0; y < rows; y++) {
       for (let x = 0; x < cols; x++) {
         const nx = x / cols, ny = y / rows;
         const n = noise(x * 0.06, y * 0.06, 4);
-        let water = false;
-
-        if (kind === 'plains') {
-          water = n < -0.42;
-        } else if (kind === 'coast') {
-          const shore = 0.60 + noise(x * 0.035, 100, 3) * 0.10;
-          water = ny > shore;
-        } else if (kind === 'river') {
-          const centre = 0.5 + noise(x * 0.028, 200, 3) * 0.13;
-          const halfWidth = 0.085 + noise(x * 0.05, 300, 2) * 0.03;
-          water = Math.abs(ny - centre) < halfWidth;
-        } else if (kind === 'strait') {
-          const centre = 0.5 + noise(x * 0.025, 400, 3) * 0.07;
-          const halfWidth = 0.20 + noise(x * 0.04, 500, 2) * 0.05;
-          water = Math.abs(ny - centre) > halfWidth;
-        } else if (kind === 'archipelago') {
-          /* Islands where the noise peaks, biased so the deployment edges keep some land. */
-          const edgeBias = Math.max(0, 1 - Math.abs(nx - 0.5) * 2.4) * 0.18;
-          water = n < 0.16 + edgeBias;
-        }
-
-        t[y * cols + x] = water ? WATER : GRASS;
+        t[y * cols + x] = shape(nx, ny, n, x, noise, y) ? WATER : GRASS;
       }
     }
 
@@ -90,6 +75,8 @@
   Terrain.prototype.decorate = function (noise, rand) {
     const cols = this.cols, rows = this.rows, t = this.tiles;
     const base = t.slice();
+    const forestBias = (this.def && this.def.forestBias) || 0;
+    const rockBias = (this.def && this.def.rockBias) || 0;
 
     for (let y = 0; y < rows; y++) {
       for (let x = 0; x < cols; x++) {
@@ -107,8 +94,9 @@
         }
         if (nearWater) { t[i] = SAND; continue; }
 
-        const f = noise(x * 0.09 + 900, y * 0.09 + 900, 3);
-        const r = noise(x * 0.14 - 700, y * 0.14 - 700, 2);
+        /* Maps can push their own character — a bare quarry, a dense wood. */
+        const f = noise(x * 0.09 + 900, y * 0.09 + 900, 3) + forestBias;
+        const r = noise(x * 0.14 - 700, y * 0.14 - 700, 2) + rockBias;
         if (r > 0.52) t[i] = ROCK;
         else if (f > 0.20) t[i] = FOREST;
       }

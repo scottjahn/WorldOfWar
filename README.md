@@ -4,6 +4,31 @@ A 2D top-down autobattler in the spirit of *Totally Accurate Battle Simulator*. 
 buy and place an army against a shared budget, then the battle runs itself and declares a
 winner.
 
+## Editions
+
+One engine, several worlds. You pick an edition on the way in, and it decides the roster, the
+maps, the field size, the budgets, what the two sides are called and what happens to a beaten
+unit.
+
+| Edition | | |
+| --- | --- | --- |
+| **Earth** | Modern combined arms | Infantry, armour, artillery, aircraft and a navy across land, air and sea. |
+| **Animals** | Household Pets vs Killer Animals | All melee, no navy, a smaller field — and nobody dies. |
+| **Space** | *Coming soon* | |
+| **Prehistoric** | *Coming soon* | |
+
+**Animals** is asymmetric: each side has its own roster. Household Pets are cheap, numerous
+and bite softly — a hamster can barely scratch a rhino, so a swarm needs its own heavies
+(bulldogs, a pot-bellied pig, a genuinely armoured tortoise) to get through hide. Killer
+Animals are big, fast and expensive, and can be dragged down by weight of numbers. Cats and
+lynxes are the only cheap answers to anything airborne.
+
+Despite the name nothing is killed: an animal whose stamina runs out turns tail and bolts off
+the field.
+
+The major version tracks editions — 2.x ships Earth and Animals, and each new edition bumps
+it again.
+
 No build step, no dependencies, no framework — plain HTML, CSS and Canvas 2D. It works on
 desktop and mobile browsers, and installs as a PWA or packages into an APK.
 
@@ -131,7 +156,10 @@ css/style.css         dark tactical UI, responsive down to phones
 js/version.js         build identifier, shared by the page and the service worker
 js/dmath.js           engine-independent trig, so replays reproduce on any browser
 js/util.js            math, seeded RNG, value noise, binary heap, spatial hash
-js/units.js           the unit catalogue — every stat, weapon and cost
+js/units.js           unit definition machinery and the active catalogue
+js/roster-earth.js    Earth's army list
+js/roster-animals.js  the Animals army list, split into two factions
+js/editions.js        what each edition is: roster, maps, budgets, side names, defeat style
 js/terrain.js         map generation, passability, connectivity, A* pathfinding
 js/sim.js             the battle: targeting, movement, weapons, projectiles, damage
 js/ai.js              army generation (AI opponent and Auto-fill)
@@ -142,11 +170,29 @@ js/main.js            phase machine and the frame loop
 sw.js                 offline support (network-first, so edits always take effect)
 ```
 
+### Adding an edition
+
+1. Write `js/roster-<id>.js` exporting `W.Roster<Name>` — same unit definitions as anywhere
+   else, plus `faction: 0 | 1` on each unit if the two sides field different things.
+2. Add an entry to `EDITIONS` in `js/editions.js`: roster, maps (each with its own `water`
+   shaper), field size in tiles, budgets, side names, and `defeat: 'destroy' | 'flee'`.
+3. Add a wire list to `WIRE` in `js/share.js` and append the id to `EDITION_WIRE`, so replay
+   links can name its units.
+4. Add the script tags to `index.html` and the paths to `ASSETS` in `sw.js`.
+5. Bump the major version in `js/version.js`.
+
+If the edition needs its own AI shopping lists, add them in `js/ai.js` and extend
+`setEdition` there.
+
 ### Tuning it
 
-Balance lives entirely in `js/units.js`; every unit is one object with its stats, weapons and
-cost. Nothing else needs to change to add a unit — give it a `shape` that `render.js` already
-draws and it appears in the roster automatically, sorted by cost into its domain tab.
+Balance lives entirely in the roster files; every unit is one object with its stats, weapons
+and cost. Nothing else needs to change to add a unit — give it a `shape` that `render.js`
+already draws and it appears in the roster automatically, sorted by cost into its domain tab,
+and filtered to its faction.
+
+Weapons with `kind: 'melee'` resolve on contact with no projectile, and their `range` is
+reach measured between the two bodies rather than between centres.
 
 Two flags on a unit are worth knowing. `hidden: true` keeps it out of the roster and out of
 the AI's shopping list, for things that are carried rather than bought. `squadron: { type,

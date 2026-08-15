@@ -10,8 +10,49 @@
   const Units = W.Units;
   const T = Units.TYPES;
 
-  /* Each doctrine lists candidate purchases with a relative weight. */
-  const DOCTRINES = [
+  /* Each doctrine lists candidate purchases with a relative weight.
+   * `faction` restricts a doctrine to one side in editions that have factions. */
+  const ANIMAL_DOCTRINES = [
+    {
+      name: 'The Whole Litter', faction: 0,
+      picks: [['hamster', 4], ['rabbit', 3.5], ['pigeon', 3], ['housecat', 2.5],
+        ['budgie', 2], ['ferret', 1.6], ['terrier', 1.4]]
+    },
+    {
+      name: 'Pedigree Line', faction: 0,
+      picks: [['guarddog', 2.2], ['bulldog', 2], ['pig', 1.4], ['terrier', 1.8],
+        ['housecat', 1.4], ['tortoise', 1], ['parrot', 0.9]]
+    },
+    {
+      name: 'Aviary', faction: 0,
+      picks: [['pigeon', 3], ['budgie', 3], ['parrot', 2], ['housecat', 1.6],
+        ['rabbit', 1.4], ['terrier', 1]]
+    },
+    {
+      name: 'Garden Wall', faction: 0,
+      picks: [['tortoise', 2.4], ['bulldog', 2.2], ['pig', 1.6], ['housecat', 1.6],
+        ['guarddog', 1.2], ['hamster', 1.6]]
+    },
+    {
+      name: 'Pack Hunt', faction: 1,
+      picks: [['wolf', 2.6], ['hyena', 2.4], ['cheetah', 1.6], ['lynx', 1.4], ['boar', 1.2]]
+    },
+    {
+      name: 'Apex Predators', faction: 1,
+      picks: [['lion', 2.2], ['bear', 1.6], ['rhino', 1.2], ['wolf', 1.6],
+        ['crocodile', 1.2], ['lynx', 1]]
+    },
+    {
+      name: 'Sky Hunters', faction: 1,
+      picks: [['eagle', 2.4], ['vulture', 2.6], ['lynx', 1.6], ['cheetah', 1.4], ['hyena', 1.4]]
+    },
+    {
+      name: 'Heavy Hide', faction: 1,
+      picks: [['rhino', 2], ['bear', 2], ['crocodile', 1.8], ['boar', 1.8], ['lion', 1.2]]
+    }
+  ];
+
+  const EARTH_DOCTRINES = [
     {
       name: 'Combined Arms',
       picks: [['rifles', 3], ['mgteam', 1.5], ['atteam', 1.5], ['medtank', 2], ['lighttank', 1.5],
@@ -59,8 +100,21 @@
     battleship: 0.2, corvette: 0.35, submarine: 0.3, carrier: 0.12,
     bomber: 0.2, fighter: 0.3,
     heavytank: 0.7, medtank: 0.68, lighttank: 0.72, apc: 0.72, jeep: 0.78,
-    rifles: 0.75, mgteam: 0.6, atteam: 0.68, pillbox: 0.55
+    rifles: 0.75, mgteam: 0.6, atteam: 0.68, pillbox: 0.55,
+    /* Animals: the slow heavies start forward, the quick ones sweep from behind. */
+    tortoise: 0.85, bulldog: 0.8, pig: 0.78, guarddog: 0.7, terrier: 0.7,
+    housecat: 0.6, ferret: 0.6, rabbit: 0.55, hamster: 0.5,
+    pigeon: 0.5, budgie: 0.45, parrot: 0.4,
+    rhino: 0.82, bear: 0.8, crocodile: 0.84, boar: 0.76, lion: 0.7,
+    wolf: 0.66, hyena: 0.6, lynx: 0.56, cheetah: 0.5, eagle: 0.4, vulture: 0.45
   };
+
+  /* The doctrine pool for the active edition. */
+  let DOCTRINES = EARTH_DOCTRINES;
+
+  function setEdition(ed) {
+    DOCTRINES = ed.id === 'animals' ? ANIMAL_DOCTRINES : EARTH_DOCTRINES;
+  }
 
   function domainOf(id) { return T[id].domain; }
 
@@ -114,14 +168,21 @@
     const seaFrac = terrain.zoneSeaFrac;
     const landFrac = terrain.zoneLandFrac;
 
-    let pool = DOCTRINES.filter(function (d) {
+    /* In an edition with factions each side has its own doctrines and roster. */
+    const factioned = W.Editions && W.Editions.current() && W.Editions.current().factions;
+    const forTeam = DOCTRINES.filter(function (d) {
+      return !factioned || d.faction === team;
+    });
+
+    let pool = forTeam.filter(function (d) {
       return !d.needsSea || seaFrac >= d.needsSea;
     });
     /* Almost no dry land to deploy on: force something that can actually fight. */
     if (landFrac < 0.15) {
-      pool = DOCTRINES.filter(function (d) { return d.needsSea; });
-      if (!pool.length) pool = [DOCTRINES[2]];
+      const naval = forTeam.filter(function (d) { return d.needsSea; });
+      if (naval.length) pool = naval;
     }
+    if (!pool.length) pool = forTeam.length ? forTeam : DOCTRINES;
     const doctrine = pool[Math.floor(rand() * pool.length)];
 
     /* On mixed maps, blend in some of a second doctrine so armies feel varied. */
@@ -135,6 +196,8 @@
      * purchase loop forever without ever consuming budget. */
     picks = picks.filter(function (p) {
       if (!T[p[0]] || T[p[0]].hidden || T[p[0]].cost <= 0) return false;
+      /* Never buy the other side's animals. */
+      if (factioned && T[p[0]].faction != null && T[p[0]].faction !== team) return false;
       const dm = domainOf(p[0]);
       if (dm === Units.SEA) return seaFrac > 0.05;
       if (dm === Units.LAND) return landFrac > 0.05;
@@ -168,5 +231,9 @@
     return army;
   }
 
-  W.ArmyAI = { generateArmy: generateArmy, DOCTRINES: DOCTRINES };
+  W.ArmyAI = {
+    generateArmy: generateArmy,
+    setEdition: setEdition,
+    doctrines: function () { return DOCTRINES; }
+  };
 })(window);

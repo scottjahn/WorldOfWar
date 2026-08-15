@@ -165,6 +165,10 @@
     this.lostValue = [0, 0];
     this.seed = (seed != null ? seed : (0x1234 ^ terrain.seed)) >>> 0;
     this.rand = U.rng(this.seed);
+    /* What happens to a beaten unit — 'destroy' or 'flee'. */
+    const ed = W.Editions && W.Editions.current();
+    this.defeat = (ed && ed.defeat) || 'destroy';
+    this.words = (ed && ed.words) || {};
 
     const self = this;
     armies.forEach(function (army, team) {
@@ -650,6 +654,27 @@
       const tgt = w.target;
       if (!tgt || !tgt.alive) continue;
 
+      /* Melee lands on contact — no projectile to launch or track. Reach is
+       * measured between bodies, so a big animal does not need to overlap a
+       * small one to bite it. */
+      if (d.kind === 'melee') {
+        if (!(d.targets & tgt.domain)) continue;
+        const reach = U.dist(u.x, u.y, tgt.x, tgt.y) - u.radius - tgt.radius;
+        if (reach > d.range) continue;
+        const want = M.atan2(tgt.y - u.y, tgt.x - u.x);
+        /* Wide arc: an animal only has to be facing roughly the right way. */
+        if (Math.abs(U.angleDiff(u.turret, want)) > 1.0) continue;
+        w.cd = d.cd;
+        this.damage(tgt, d.dmg, d.pen, u);
+        if (d.splash > 0) this.splashDamage(d, tgt.x, tgt.y, u.team, tgt);
+        u.recoil = 1;
+        this.effects.push({
+          kind: 'strike', x: (u.x + tgt.x) / 2, y: (u.y + tgt.y) / 2,
+          a: want, t: 0, life: 0.18, size: 5 + d.dmg * 0.06
+        });
+        continue;
+      }
+
       if (d.kind === 'repair') {
         if (U.dist(u.x, u.y, tgt.x, tgt.y) <= d.range && tgt.hp < tgt.maxHp) {
           tgt.hp = Math.min(tgt.maxHp, tgt.hp + d.dmg);
@@ -803,22 +828,7 @@
 
     if (directHit) this.damage(directHit, d.dmg, d.pen, p.owner);
 
-    if (d.splash > 0) {
-      const near = this.hash.query(x, y, d.splash + 40, this.splashScratch);
-      for (let i = 0; i < near.length; i++) {
-        const e = near[i];
-        if (!e.alive || e === directHit) continue;
-        if (e.team === p.team && !d.friendlyFire) {
-          /* Splash is enemy-only: friendly fire would make artillery unusable. */
-          continue;
-        }
-        if (!(d.targets & e.domain)) continue;
-        const dist = U.dist(x, y, e.x, e.y) - e.radius;
-        if (dist > d.splash) continue;
-        const falloff = 1 - U.clamp(dist / d.splash, 0, 1);
-        this.damage(e, d.dmg * falloff * 0.85, d.pen, p.owner);
-      }
-    }
+    if (d.splash > 0) this.splashDamage(d, x, y, p.team, directHit, p.owner);
 
     const big = Math.max(8, d.splash * 0.8 + d.dmg * 0.05);
     this.effects.push({ kind: 'boom', x: x, y: y, t: 0, life: 0.25 + big * 0.004, size: big });
@@ -826,6 +836,22 @@
      * Shells landing in the sea used to stack into a black hole on the water. */
     if (d.splash > 30 && this.decals.length < 260 && this.terrain.passable(LAND, x, y)) {
       this.decals.push({ x: x, y: y, r: d.splash * 0.55, kind: 'crater' });
+    }
+  };
+
+  /* Area damage around a point, shared by explosions and heavy melee swings. */
+  Battle.prototype.splashDamage = function (d, x, y, team, skip, source) {
+    const near = this.hash.query(x, y, d.splash + 40, this.splashScratch);
+    for (let i = 0; i < near.length; i++) {
+      const e = near[i];
+      if (!e.alive || e === skip) continue;
+      /* Splash is enemy-only: friendly fire would make artillery unusable. */
+      if (e.team === team && !d.friendlyFire) continue;
+      if (!(d.targets & e.domain)) continue;
+      const dist = U.dist(x, y, e.x, e.y) - e.radius;
+      if (dist > d.splash) continue;
+      const falloff = 1 - U.clamp(dist / d.splash, 0, 1);
+      this.damage(e, d.dmg * falloff * 0.85, d.pen, source);
     }
   };
 
@@ -838,10 +864,25 @@
     if (u.hp <= 0) this.kill(u);
   };
 
+  /* Removes a unit from the battle. Editions choose what that looks like: Earth
+   * blows it up and leaves a wreck, Animals has it turn tail and bolt. Either way
+   * it stops fighting and its value counts as lost. */
   Battle.prototype.kill = function (u) {
     u.alive = false;
     u.hp = 0;
     this.lostValue[u.team] += u.type.cost;
+
+    if (this.defeat === 'flee') {
+      /* Away from whatever beat it, and off toward its own side of the field. */
+      const homeward = u.team === 0 ? Math.PI : 0;
+      const away = u.target ? M.atan2(u.y - u.target.y, u.x - u.target.x) : homeward;
+      this.effects.push({
+        kind: 'flee', x: u.x, y: u.y, a: away, hdg: u.hdg,
+        type: u.type, team: u.team, t: 0, life: 1.6
+      });
+      return;
+    }
+
     const size = 12 + u.radius * 1.4;
     this.effects.push({ kind: 'boom', x: u.x, y: u.y, t: 0, life: 0.5, size: size });
     this.effects.push({ kind: 'smoke', x: u.x, y: u.y, t: 0, life: 2.2, size: size });
@@ -871,7 +912,8 @@
     if (a === 0 || b === 0) {
       this.over = true;
       this.winner = a === 0 && b === 0 ? -1 : (a === 0 ? 1 : 0);
-      this.reason = this.winner === -1 ? 'Mutual annihilation' : 'Enemy army destroyed';
+      this.reason = this.winner === -1 ? 'Mutual annihilation'
+        : (this.words.wipeout || 'Enemy army destroyed');
       return;
     }
     if (this.time >= MAX_BATTLE_TIME) {

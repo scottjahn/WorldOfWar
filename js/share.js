@@ -21,8 +21,9 @@
 (function (W) {
   'use strict';
 
-  const FORMAT = 1;
-  const HEADER = 16;
+  /* Format 2 added the edition byte; format 1 payloads are all Earth. */
+  const FORMAT = 2;
+  const HEADER = 17;
   const UNIT_BYTES = 5;
 
   /* Fixed wire ordering for unit types.
@@ -31,24 +32,43 @@
    * link, so shuffling this list silently turns every existing link into a
    * different army. New units go on the end; if a link references an index this
    * build does not know, decoding fails cleanly rather than guessing. */
-  const TYPE_WIRE = [
-    'rifles', 'mgteam', 'atteam', 'mortar', 'jeep', 'apc', 'lighttank', 'medtank',
-    'heavytank', 'flaktank', 'sam', 'spg', 'mlrs', 'repair', 'pillbox', 'coastalgun',
-    'drone', 'gunship', 'attackheli', 'fighter', 'bomber', 'patrolboat', 'corvette',
-    'destroyer', 'battleship', 'carrier', 'f14', 'submarine'
-  ];
+  const WIRE = {
+    earth: [
+      'rifles', 'mgteam', 'atteam', 'mortar', 'jeep', 'apc', 'lighttank', 'medtank',
+      'heavytank', 'flaktank', 'sam', 'spg', 'mlrs', 'repair', 'pillbox', 'coastalgun',
+      'drone', 'gunship', 'attackheli', 'fighter', 'bomber', 'patrolboat', 'corvette',
+      'destroyer', 'battleship', 'carrier', 'f14', 'submarine'
+    ],
+    animals: [
+      'hamster', 'pigeon', 'rabbit', 'budgie', 'housecat', 'ferret', 'terrier', 'parrot',
+      'bulldog', 'tortoise', 'guarddog', 'pig',
+      'vulture', 'hyena', 'boar', 'lynx', 'wolf', 'eagle', 'cheetah', 'crocodile',
+      'lion', 'bear', 'rhino'
+    ]
+  };
 
-  const TYPE_INDEX = {};
-  TYPE_WIRE.forEach(function (id, i) { TYPE_INDEX[id] = i; });
+  /* Edition ordering is itself a wire format — append only, same as the unit lists. */
+  const EDITION_WIRE = ['earth', 'animals', 'space', 'prehistoric'];
+
+  function wireFor(editionId) { return WIRE[editionId] || []; }
+
+  function indexFor(editionId) {
+    const list = wireFor(editionId);
+    const map = {};
+    list.forEach(function (id, i) { map[id] = i; });
+    return map;
+  }
 
   /* Surfaces a mismatch during development rather than shipping broken links. */
-  function auditRegistry() {
+  function auditRegistry(editionId) {
+    const ed = editionId || (W.Editions.current() && W.Editions.current().id) || 'earth';
+    const map = indexFor(ed);
     const missing = Object.keys(W.Units.TYPES).filter(function (id) {
-      return TYPE_INDEX[id] === undefined;
+      return map[id] === undefined;
     });
     if (missing.length && window.console) {
-      console.warn('share.js: unit types missing from TYPE_WIRE (links cannot encode them): ' +
-        missing.join(', '));
+      console.warn('share.js: unit types missing from the "' + ed +
+        '" wire list (links cannot encode them): ' + missing.join(', '));
     }
     return missing;
   }
@@ -73,9 +93,17 @@
 
   /* setup: { mapId, terrainSeed, battleSeed, budget, armies: [[{type,x,y}], [...]] } */
   function encode(setup) {
-    const mapIndex = W.Terrain.MAPS.findIndex(function (m) { return m.id === setup.mapId; });
+    const editionId = setup.editionId ||
+      (W.Editions.current() && W.Editions.current().id) || 'earth';
+    const edIndex = EDITION_WIRE.indexOf(editionId);
+    if (edIndex < 0) throw new Error('unknown edition: ' + editionId);
+
+    const ed = W.Editions.byId(editionId);
+    const maps = (ed && ed.maps) || W.Terrain.MAPS;
+    const mapIndex = maps.findIndex(function (m) { return m.id === setup.mapId; });
     if (mapIndex < 0) throw new Error('unknown map: ' + setup.mapId);
 
+    const typeIndex = indexFor(editionId);
     const a = setup.armies[0], b = setup.armies[1];
     const total = a.length + b.length;
     const buf = new ArrayBuffer(HEADER + total * UNIT_BYTES);
@@ -88,11 +116,12 @@
     view.setUint16(10, Math.min(65535, setup.budget | 0), true);
     view.setUint16(12, a.length, true);
     view.setUint16(14, b.length, true);
+    view.setUint8(16, edIndex);
 
     let o = HEADER;
     [a, b].forEach(function (army) {
       army.forEach(function (e) {
-        const idx = TYPE_INDEX[e.type];
+        const idx = typeIndex[e.type];
         if (idx === undefined) throw new Error('unit type not in wire registry: ' + e.type);
         view.setUint8(o, idx);
         /* Positions are whole world units by the time they reach an army, so this
@@ -120,26 +149,34 @@
     } catch (e) {
       return null;
     }
-    if (bytes.length < HEADER) return null;
-
     const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-    if (view.getUint8(0) !== FORMAT) return null;
+    const format = bytes.length ? view.getUint8(0) : 0;
+    /* Format 1 predates editions and is always Earth; its header is a byte shorter. */
+    if (format !== FORMAT && format !== 1) return null;
+    const header = format === 1 ? 16 : HEADER;
+    if (bytes.length < header) return null;
 
+    const editionId = format === 1 ? 'earth' : EDITION_WIRE[view.getUint8(16)];
+    const ed = editionId && W.Editions.byId(editionId);
+    if (!ed || !ed.available) return null;
+
+    const maps = ed.maps || [];
     const mapIndex = view.getUint8(1);
-    if (mapIndex >= W.Terrain.MAPS.length) return null;
+    if (mapIndex >= maps.length) return null;
 
     const countA = view.getUint16(12, true);
     const countB = view.getUint16(14, true);
     const total = countA + countB;
-    if (bytes.length !== HEADER + total * UNIT_BYTES) return null;
+    if (bytes.length !== header + total * UNIT_BYTES) return null;
 
+    const wire = wireFor(editionId);
     const armies = [[], []];
-    let o = HEADER;
+    let o = header;
     for (let team = 0; team < 2; team++) {
       const n = team === 0 ? countA : countB;
       for (let i = 0; i < n; i++) {
-        const id = TYPE_WIRE[view.getUint8(o)];
-        if (!id || !W.Units.TYPES[id]) return null;
+        const id = wire[view.getUint8(o)];
+        if (!id) return null;
         armies[team].push({
           type: id,
           x: view.getUint16(o + 1, true),
@@ -150,7 +187,8 @@
     }
 
     return {
-      mapId: W.Terrain.MAPS[mapIndex].id,
+      editionId: editionId,
+      mapId: maps[mapIndex].id,
       terrainSeed: view.getUint32(2, true) >>> 0,
       battleSeed: view.getUint32(6, true) >>> 0,
       budget: view.getUint16(10, true),
@@ -181,7 +219,8 @@
     linkFor: linkFor,
     fromHash: fromHash,
     auditRegistry: auditRegistry,
-    TYPE_WIRE: TYPE_WIRE,
+    wireFor: wireFor,
+    EDITION_WIRE: EDITION_WIRE,
     FORMAT: FORMAT
   };
 })(window);

@@ -5,7 +5,7 @@
   const U = W.Util;
   const Units = W.Units;
 
-  const BUDGETS = [1500, 3000, 6000, 12000];
+  const EDITION_KEY = 'wow.edition';
 
   function Game() {
     this.canvas = document.getElementById('game');
@@ -15,11 +15,19 @@
     this.phase = 'menu';
     this.terrain = null;
     this.armies = [[], []];
-    this.budget = 3000;
     this.playerTeam = 0;
     this.hotseat = false;
-    this.mapId = 'coast';
     this.seed = (Math.random() * 0xffffffff) >>> 0;
+
+    /* Start on whichever edition was last played, falling back to Earth. */
+    let remembered = null;
+    try {
+      remembered = window.localStorage && localStorage.getItem(EDITION_KEY);
+    } catch (e) {
+      remembered = null;
+    }
+    this.setEdition((remembered && W.Editions.byId(remembered) &&
+      W.Editions.byId(remembered).available) ? remembered : 'earth');
 
     this.battle = null;
     this.speed = 1;
@@ -58,7 +66,8 @@
         this.openMenu();
         this.ui.toast('That replay link could not be read');
       } else {
-        this.openMenu();
+        /* First stop is always the edition picker — it is the front door. */
+        this.openEditionPicker();
       }
     }
     requestAnimationFrame(function (t) { self.frame(t); });
@@ -71,6 +80,64 @@
     }
   };
 
+  /* ========================== editions =========================== */
+
+  /* Loads an edition's content and resets anything that belonged to the last one. */
+  Game.prototype.setEdition = function (id) {
+    const ed = W.Editions.activate(id);
+    if (!ed) return false;
+    this.edition = ed;
+    this.mapId = ed.defaultMap;
+    this.budget = ed.defaultBudget;
+    this.armies = [[], []];
+    this.battle = null;
+    this.savedArmies = null;
+    this.terrain = null;
+    try {
+      if (window.localStorage) localStorage.setItem(EDITION_KEY, id);
+    } catch (e) { /* private browsing — the choice just will not persist */ }
+    return true;
+  };
+
+  Game.prototype.openEditionPicker = function () {
+    const self = this;
+    this.phase = 'menu';
+    this.ui.showPlacement(false);
+    this.ui.showBattleControls(false);
+    this.ui.setPhaseLabel('Choose edition');
+
+    let html = '<h1>World of War</h1>';
+    html += '<div class="build-tag">v' + W.UI.esc(W.WOW_VERSION || '?') +
+      ' · build ' + W.UI.esc(W.WOW_BUILD || '?') + '</div>';
+    html += '<p class="lede">Same battles, different worlds. Pick an edition.</p>';
+
+    html += '<div class="edition-grid">';
+    W.Editions.ALL.forEach(function (ed) {
+      const cls = 'edition-card' + (ed.available ? '' : ' locked') +
+        (ed.id === self.edition.id ? ' selected' : '');
+      html += '<button class="' + cls + '"' +
+        (ed.available ? ' data-edition="' + ed.id + '"' : ' disabled') + '>';
+      html += '<span class="edition-emblem">' + ed.emblem + '</span>';
+      html += '<span class="edition-body">';
+      html += '<span class="edition-name">' + W.UI.esc(ed.short) + '</span>';
+      html += '<span class="edition-tag">' + W.UI.esc(ed.tagline) + '</span>';
+      html += '<span class="edition-blurb">' + W.UI.esc(ed.blurb) + '</span>';
+      html += '</span>';
+      if (!ed.available) html += '<span class="edition-soon">Coming soon</span>';
+      html += '</button>';
+    });
+    html += '</div>';
+
+    this.ui.showOverlay(html, function (panel) {
+      panel.querySelectorAll('[data-edition]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          self.setEdition(b.getAttribute('data-edition'));
+          self.openMenu();
+        });
+      });
+    });
+  };
+
   /* ============================ menu ============================= */
 
   Game.prototype.openMenu = function () {
@@ -80,13 +147,15 @@
     this.ui.showBattleControls(false);
     this.ui.setPhaseLabel('Setup');
 
-    let html = '<h1>World of War</h1>';
+    const ed = this.edition;
+    let html = '<h1>' + W.UI.esc(ed.name) + '</h1>';
     /* Directly under the title so it is visible without scrolling on a phone —
      * the whole point is checking at a glance which build actually loaded when a
      * cached copy would otherwise look identical to a fresh one. */
     html += '<div class="build-tag">v' + W.UI.esc(W.WOW_VERSION || '?') +
-      ' · build ' + W.UI.esc(W.WOW_BUILD || '?') + '</div>';
-    html += '<p class="lede">Build an army, place it, and watch the battle play itself out.</p>';
+      ' · build ' + W.UI.esc(W.WOW_BUILD || '?') +
+      ' · <button class="linkish" id="ovEdition">change edition</button></div>';
+    html += '<p class="lede">' + W.UI.esc(ed.blurb) + '</p>';
 
     html += '<div class="section-label">Battlefield</div><div class="map-grid">';
     W.Terrain.MAPS.forEach(function (m) {
@@ -97,7 +166,7 @@
     html += '</div>';
 
     html += '<div class="section-label">Army budget</div><div class="chip-row">';
-    BUDGETS.forEach(function (b) {
+    ed.budgets.forEach(function (b) {
       html += '<button class="chip' + (b === self.budget ? ' selected' : '') + '" data-budget="' + b + '">' + U.formatCost(b) + '</button>';
     });
     html += '</div>';
@@ -106,6 +175,11 @@
     html += '<button class="chip' + (!self.hotseat ? ' selected' : '') + '" data-mode="ai">Computer</button>';
     html += '<button class="chip' + (self.hotseat ? ' selected' : '') + '" data-mode="hotseat">Two players (same device)</button>';
     html += '</div>';
+
+    if (ed.factions) {
+      html += '<p class="faction-note">You command <strong>' + W.UI.esc(ed.teams[0]) +
+        '</strong>; the ' + W.UI.esc(ed.teams[1]) + ' oppose you. Each side fields its own animals.</p>';
+    }
 
     html += '<div class="overlay-actions">';
     html += '<button class="btn ghost" id="ovReroll">New terrain</button>';
@@ -134,6 +208,9 @@
           panel.querySelectorAll('[data-mode]').forEach(function (o) { o.classList.remove('selected'); });
           b.classList.add('selected');
         });
+      });
+      panel.querySelector('#ovEdition').addEventListener('click', function () {
+        self.openEditionPicker();
       });
       panel.querySelector('#ovReroll').addEventListener('click', function () {
         self.seed = (Math.random() * 0xffffffff) >>> 0;
@@ -177,7 +254,7 @@
     this.placingType = null;
     this.concealed = false;
     this.undoStack = [];
-    this.ui.setPhaseLabel(team === 0 ? 'Deploy — Blue' : 'Deploy — Red');
+    this.ui.setPhaseLabel('Deploy — ' + W.Editions.teamName(team));
     this.ui.buildRoster();
     this.ui.refreshBudget();
     this.ui.refreshTallies();
@@ -354,15 +431,17 @@
       this.placingType = null;
       this.ghost = null;
       this.hover = null;
+      const first = W.Editions.teamName(0), second = W.Editions.teamName(1);
       this.ui.showOverlay(
-        '<h2>Pass the device</h2><p class="lede">Blue army is locked in and hidden. ' +
-        'Hand over to the Red commander — you will deploy without seeing where Blue is.</p>' +
+        '<h2>Pass the device</h2><p class="lede">' + W.UI.esc(first) + ' are locked in and hidden. ' +
+        'Hand over to ' + W.UI.esc(second) + ' — you will deploy without seeing where they are.</p>' +
         '<div class="overlay-actions"><button class="btn primary" id="ovNext">Red is ready</button></div>',
         function (panel) {
           panel.querySelector('#ovNext').addEventListener('click', function () {
             self.ui.hideOverlay();
             self.enterPlacementFor(1);
           });
+          panel.querySelector('#ovNext').textContent = second + ' ready';
         });
       return;
     }
@@ -430,21 +509,25 @@
     const b = this.battle;
     const self = this;
     const winner = b.winner;
-    const title = winner === -1 ? 'Mutual Destruction' : (winner === 0 ? 'Blue Victory' : 'Red Victory');
+    const ed = this.edition;
+    const title = winner === -1 ? 'Stalemate' : W.Editions.teamName(winner) + ' Victory';
     const cls = winner === 0 ? 'win-blue' : winner === 1 ? 'win-red' : 'win-draw';
+    const words = ed.words || {};
 
     let html = '<h2 class="' + cls + '">' + title + '</h2>';
     html += '<p class="lede">' + W.UI.esc(b.reason) + ' · ' + formatTime(b.time) +
       ' · <span class="seed">seed ' + b.seed.toString(16) + '</span></p>';
+    const wSurv = words.survivors || 'Survivors';
+    const wLeft = words.remaining || 'Value left';
+    const wLost = words.lost || 'Value lost';
     html += '<div class="result-grid">';
-    html += '<div class="result-col"><div class="result-team blue">Blue</div>' +
-      resultRow('Survivors', b.aliveUnits(0) + ' / ' + countTeam(b, 0)) +
-      resultRow('Value left', U.formatCost(Math.round(b.remainingValue(0)))) +
-      resultRow('Value lost', U.formatCost(Math.round(b.lostValue[0]))) + '</div>';
-    html += '<div class="result-col"><div class="result-team red">Red</div>' +
-      resultRow('Survivors', b.aliveUnits(1) + ' / ' + countTeam(b, 1)) +
-      resultRow('Value left', U.formatCost(Math.round(b.remainingValue(1)))) +
-      resultRow('Value lost', U.formatCost(Math.round(b.lostValue[1]))) + '</div>';
+    for (let team = 0; team < 2; team++) {
+      html += '<div class="result-col"><div class="result-team ' + (team === 0 ? 'blue' : 'red') + '">' +
+        W.UI.esc(W.Editions.teamName(team)) + '</div>' +
+        resultRow(wSurv, b.aliveUnits(team) + ' / ' + countTeam(b, team)) +
+        resultRow(wLeft, U.formatCost(Math.round(b.remainingValue(team)))) +
+        resultRow(wLost, U.formatCost(Math.round(b.lostValue[team]))) + '</div>';
+    }
     html += '</div>';
 
     html += '<div class="share-row"><input id="ovLink" class="share-link" readonly>' +
@@ -493,6 +576,7 @@
   /* A shareable URL that reproduces the battle currently loaded. */
   Game.prototype.replayLink = function () {
     return W.Share.linkFor({
+      editionId: this.edition.id,
       mapId: this.mapId,
       terrainSeed: this.terrain.seed,
       battleSeed: this.battleSeed,
@@ -513,6 +597,12 @@
     if (!setup) return false;
     if (!setup.armies[0].length && !setup.armies[1].length) return false;
 
+    /* A link names its own edition, so following one can switch worlds. This has
+     * to happen before validating, since the roster and field size come with it. */
+    const wantEdition = setup.editionId || 'earth';
+    const previousEdition = this.edition && this.edition.id;
+    if (wantEdition !== previousEdition && !this.setEdition(wantEdition)) return false;
+
     /* Validate against a throwaway terrain first. Checking after committing would
      * leave a rejected link having already swapped the map and wiped the armies,
      * stranding the player on an empty battlefield. */
@@ -520,6 +610,10 @@
     try {
       candidate = new W.Terrain(setup.mapId, setup.terrainSeed);
     } catch (e) {
+      candidate = null;
+    }
+    if (!candidate) {
+      if (previousEdition && previousEdition !== wantEdition) this.setEdition(previousEdition);
       return false;
     }
     const bad = setup.armies.some(function (army) {
@@ -530,7 +624,10 @@
           !candidate.passable(type.domain, e.x, e.y);
       });
     });
-    if (bad) return false;
+    if (bad) {
+      if (previousEdition && previousEdition !== wantEdition) this.setEdition(previousEdition);
+      return false;
+    }
 
     /* Everything checks out — now commit. */
     this.mapId = setup.mapId;

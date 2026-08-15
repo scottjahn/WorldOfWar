@@ -579,6 +579,45 @@
         ctx.fill();
         ctx.restore();
         ctx.globalAlpha = 1;
+      } else if (e.kind === 'strike') {
+        /* A quick slash where two animals met. */
+        ctx.save();
+        ctx.translate(e.x, e.y);
+        ctx.rotate(e.a);
+        ctx.globalAlpha = 1 - k;
+        ctx.strokeStyle = '#fff2d0';
+        ctx.lineWidth = 2.2;
+        ctx.lineCap = 'round';
+        for (let s = -1; s <= 1; s += 2) {
+          ctx.beginPath();
+          ctx.moveTo(-e.size * 0.4, s * e.size * 0.55);
+          ctx.quadraticCurveTo(e.size * 0.3, s * e.size * 0.2, e.size * 0.9, s * e.size * 0.5);
+          ctx.stroke();
+        }
+        ctx.restore();
+        ctx.globalAlpha = 1;
+      } else if (e.kind === 'flee') {
+        /* The animal bolts off the field, shrinking and fading as it goes. */
+        const dist = 30 + k * 150;
+        const fx = e.x + Math.cos(e.a) * dist;
+        const fy = e.y + Math.sin(e.a) * dist;
+        ctx.save();
+        ctx.globalAlpha = (1 - k) * 0.85;
+        const col = TEAM[e.team];
+        ctx.translate(fx, fy);
+        /* Facing the way it is running. */
+        ctx.rotate(e.a);
+        ctx.scale(1 - k * 0.35, 1 - k * 0.35);
+        drawBody(ctx, e.type, col, null);
+        ctx.restore();
+        /* A little dust puff behind it. */
+        ctx.globalAlpha = (1 - k) * 0.3;
+        ctx.fillStyle = '#b9a888';
+        ctx.beginPath();
+        ctx.arc(e.x + Math.cos(e.a) * dist * 0.4, e.y + Math.sin(e.a) * dist * 0.4,
+          6 + k * 14, 0, U.TAU);
+        ctx.fill();
+        ctx.globalAlpha = 1;
       } else if (e.kind === 'heal') {
         ctx.globalAlpha = (1 - k) * 0.8;
         ctx.strokeStyle = '#8effc0';
@@ -619,21 +658,7 @@
     const dark = flash ? '#e0a090' : col.dark;
     const light = col.light;
 
-    switch (type.shape) {
-      case 'infantry': drawInfantry(ctx, r, body, dark, light); break;
-      case 'wheeled': drawWheeled(ctx, r, body, dark, light); break;
-      case 'artillery': drawArtillery(ctx, r, body, dark, light, hdg, turret, live); break;
-      case 'static': drawStatic(ctx, r, body, dark, light, hdg, turret, live); break;
-      case 'drone': drawDrone(ctx, r, body, dark, light, live); break;
-      case 'heli': drawHeli(ctx, r, body, dark, light, live); break;
-      case 'jet': drawJet(ctx, r, body, dark, light); break;
-      case 'bomber': drawBomber(ctx, r, body, dark, light); break;
-      case 'boat': drawBoat(ctx, r, body, dark, light); break;
-      case 'ship': drawShip(ctx, r, body, dark, light); break;
-      case 'carrier': drawCarrier(ctx, r, body, dark, light); break;
-      case 'sub': drawSub(ctx, r, body, dark, light); break;
-      default: drawTank(ctx, r, body, dark, light); break;
-    }
+    drawShapeOf(ctx, type, r, body, dark, light, hdg, turret, live);
 
     /* Rotating turret drawn in world space, not hull space. */
     if (type.shape === 'tank' || type.shape === 'ship' || type.shape === 'wheeled') {
@@ -951,6 +976,161 @@
     ctx.fillRect(-r * 1.5, -r * 0.06, r * 0.4, r * 0.12);
   }
 
+  /* The one place that maps a shape name to a drawing routine. Used by live
+   * units, roster icons and the flee animation alike. */
+  function drawShapeOf(ctx, type, r, body, dark, light, hdg, turret, live) {
+    switch (type.shape) {
+      case 'infantry': drawInfantry(ctx, r, body, dark, light); break;
+      case 'wheeled': drawWheeled(ctx, r, body, dark, light); break;
+      case 'artillery': drawArtillery(ctx, r, body, dark, light, hdg, turret, live); break;
+      case 'static': drawStatic(ctx, r, body, dark, light, hdg, turret, live); break;
+      case 'drone': drawDrone(ctx, r, body, dark, light, live); break;
+      case 'heli': drawHeli(ctx, r, body, dark, light, live); break;
+      case 'jet': drawJet(ctx, r, body, dark, light); break;
+      case 'bomber': drawBomber(ctx, r, body, dark, light); break;
+      case 'boat': drawBoat(ctx, r, body, dark, light); break;
+      case 'ship': drawShip(ctx, r, body, dark, light); break;
+      case 'carrier': drawCarrier(ctx, r, body, dark, light); break;
+      case 'sub': drawSub(ctx, r, body, dark, light); break;
+      case 'critter': drawCritter(ctx, r, body, dark, light); break;
+      case 'quadruped': drawQuadruped(ctx, r, body, dark, light); break;
+      case 'beast': drawBeast(ctx, r, body, dark, light); break;
+      case 'bird': drawBird(ctx, r, body, dark, light, live); break;
+      case 'shelled': drawShelled(ctx, r, body, dark, light); break;
+      default: drawTank(ctx, r, body, dark, light); break;
+    }
+  }
+
+  /* Shape only, at the type's own size — for the routed animal animation. */
+  function drawBody(ctx, type, col, live) {
+    drawShapeOf(ctx, type, type.radius, col.main, col.dark, col.light, 0, 0, live);
+  }
+
+  /* ---------------------- animal shapes ---------------------- */
+  /* All drawn nose-right, matching the heading convention of the vehicles. */
+
+  function drawCritter(ctx, r, body, dark, light) {
+    ctx.fillStyle = dark;                                   // tail
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.8, 0);
+    ctx.quadraticCurveTo(-r * 1.6, -r * 0.5, -r * 1.3, -r * 0.9);
+    ctx.lineWidth = r * 0.22; ctx.strokeStyle = dark; ctx.stroke();
+    ctx.fillStyle = body;                                   // body
+    ctx.beginPath(); ctx.ellipse(-r * 0.1, 0, r * 0.85, r * 0.62, 0, 0, U.TAU); ctx.fill();
+    ctx.fillStyle = dark;                                   // ears
+    ctx.beginPath(); ctx.ellipse(r * 0.55, -r * 0.42, r * 0.24, r * 0.34, -0.4, 0, U.TAU); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(r * 0.55, r * 0.42, r * 0.24, r * 0.34, 0.4, 0, U.TAU); ctx.fill();
+    ctx.fillStyle = body;                                   // head
+    ctx.beginPath(); ctx.arc(r * 0.68, 0, r * 0.46, 0, U.TAU); ctx.fill();
+    ctx.fillStyle = light;                                  // snout
+    ctx.beginPath(); ctx.arc(r * 1.02, 0, r * 0.16, 0, U.TAU); ctx.fill();
+  }
+
+  function drawQuadruped(ctx, r, body, dark, light) {
+    ctx.strokeStyle = dark; ctx.lineCap = 'round';           // legs
+    ctx.lineWidth = r * 0.2;
+    for (let i = -1; i <= 1; i += 2) {
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.5, i * r * 0.3); ctx.lineTo(-r * 0.72, i * r * 0.72);
+      ctx.moveTo(r * 0.4, i * r * 0.3); ctx.lineTo(r * 0.6, i * r * 0.72);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = dark; ctx.lineWidth = r * 0.16;        // tail
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.9, 0);
+    ctx.quadraticCurveTo(-r * 1.5, -r * 0.25, -r * 1.5, -r * 0.7);
+    ctx.stroke();
+    ctx.fillStyle = dark;                                    // body
+    ctx.beginPath(); ctx.ellipse(-r * 0.1, 0, r * 1.0, r * 0.5, 0, 0, U.TAU); ctx.fill();
+    ctx.fillStyle = body;
+    ctx.beginPath(); ctx.ellipse(-r * 0.1, 0, r * 0.86, r * 0.38, 0, 0, U.TAU); ctx.fill();
+    ctx.fillStyle = dark;                                    // ears
+    ctx.beginPath(); ctx.moveTo(r * 0.72, -r * 0.34);
+    ctx.lineTo(r * 0.92, -r * 0.7); ctx.lineTo(r * 1.02, -r * 0.28); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(r * 0.72, r * 0.34);
+    ctx.lineTo(r * 0.92, r * 0.7); ctx.lineTo(r * 1.02, r * 0.28); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = body;                                    // head + muzzle
+    ctx.beginPath(); ctx.arc(r * 0.92, 0, r * 0.44, 0, U.TAU); ctx.fill();
+    ctx.fillStyle = light;
+    ctx.beginPath(); ctx.ellipse(r * 1.3, 0, r * 0.26, r * 0.19, 0, 0, U.TAU); ctx.fill();
+  }
+
+  function drawBeast(ctx, r, body, dark, light) {
+    ctx.strokeStyle = dark; ctx.lineCap = 'round';           // heavy legs
+    ctx.lineWidth = r * 0.28;
+    for (let i = -1; i <= 1; i += 2) {
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.5, i * r * 0.4); ctx.lineTo(-r * 0.68, i * r * 0.82);
+      ctx.moveTo(r * 0.35, i * r * 0.4); ctx.lineTo(r * 0.52, i * r * 0.82);
+      ctx.stroke();
+    }
+    ctx.fillStyle = dark;                                    // bulk
+    ctx.beginPath(); ctx.ellipse(-r * 0.15, 0, r * 1.05, r * 0.66, 0, 0, U.TAU); ctx.fill();
+    ctx.fillStyle = body;
+    ctx.beginPath(); ctx.ellipse(-r * 0.2, 0, r * 0.9, r * 0.52, 0, 0, U.TAU); ctx.fill();
+    ctx.fillStyle = dark;                                    // shoulder hump
+    ctx.beginPath(); ctx.arc(-r * 0.05, -r * 0.06, r * 0.42, 0, U.TAU); ctx.fill();
+    ctx.fillStyle = body;                                    // head
+    ctx.beginPath(); ctx.ellipse(r * 0.92, 0, r * 0.5, r * 0.42, 0, 0, U.TAU); ctx.fill();
+    ctx.fillStyle = light;                                   // horn / tusks
+    ctx.beginPath();
+    ctx.moveTo(r * 1.3, -r * 0.1); ctx.lineTo(r * 1.62, -r * 0.3); ctx.lineTo(r * 1.32, r * 0.1);
+    ctx.closePath(); ctx.fill();
+  }
+
+  function drawBird(ctx, r, body, dark, light, live) {
+    /* Wings beat over time; without a live unit (icon) they sit spread. */
+    const beat = live ? Math.sin(live.rotor * 0.55) : 0.35;
+    const span = r * (1.15 + beat * 0.35);
+    ctx.fillStyle = dark;
+    ctx.beginPath();                                         // wings
+    ctx.moveTo(-r * 0.1, 0);
+    ctx.quadraticCurveTo(-r * 0.3, -span, r * 0.55, -span * 0.82);
+    ctx.quadraticCurveTo(r * 0.15, -r * 0.2, r * 0.1, 0);
+    ctx.quadraticCurveTo(r * 0.15, r * 0.2, r * 0.55, span * 0.82);
+    ctx.quadraticCurveTo(-r * 0.3, span, -r * 0.1, 0);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = dark;                                    // tail
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.55, 0); ctx.lineTo(-r * 1.25, -r * 0.3);
+    ctx.lineTo(-r * 1.25, r * 0.3); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = body;                                    // body
+    ctx.beginPath(); ctx.ellipse(0, 0, r * 0.72, r * 0.3, 0, 0, U.TAU); ctx.fill();
+    ctx.fillStyle = body;                                    // head
+    ctx.beginPath(); ctx.arc(r * 0.72, 0, r * 0.3, 0, U.TAU); ctx.fill();
+    ctx.fillStyle = light;                                   // beak
+    ctx.beginPath();
+    ctx.moveTo(r * 0.95, -r * 0.12); ctx.lineTo(r * 1.35, 0);
+    ctx.lineTo(r * 0.95, r * 0.12); ctx.closePath(); ctx.fill();
+  }
+
+  function drawShelled(ctx, r, body, dark, light) {
+    ctx.strokeStyle = dark; ctx.lineCap = 'round';           // stubby legs
+    ctx.lineWidth = r * 0.22;
+    for (let i = -1; i <= 1; i += 2) {
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.4, i * r * 0.5); ctx.lineTo(-r * 0.62, i * r * 0.82);
+      ctx.moveTo(r * 0.4, i * r * 0.5); ctx.lineTo(r * 0.62, i * r * 0.82);
+      ctx.stroke();
+    }
+    ctx.fillStyle = body;                                    // head
+    ctx.beginPath(); ctx.ellipse(r * 1.0, 0, r * 0.36, r * 0.26, 0, 0, U.TAU); ctx.fill();
+    ctx.fillStyle = dark;                                    // shell
+    ctx.beginPath(); ctx.ellipse(0, 0, r * 1.0, r * 0.8, 0, 0, U.TAU); ctx.fill();
+    ctx.fillStyle = body;
+    ctx.beginPath(); ctx.ellipse(0, 0, r * 0.8, r * 0.62, 0, 0, U.TAU); ctx.fill();
+    /* Scute plates. */
+    ctx.strokeStyle = dark; ctx.lineWidth = Math.max(1, r * 0.1);
+    ctx.beginPath(); ctx.ellipse(0, 0, r * 0.4, r * 0.3, 0, 0, U.TAU); ctx.stroke();
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * U.TAU;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(a) * r * 0.4, Math.sin(a) * r * 0.3);
+      ctx.lineTo(Math.cos(a) * r * 0.8, Math.sin(a) * r * 0.62);
+      ctx.stroke();
+    }
+  }
+
   function roundRect(ctx, x, y, w, h, r) {
     ctx.beginPath();
     ctx.moveTo(x + r, y);
@@ -968,24 +1148,14 @@
   /* Small standalone icon used by the roster list. */
   Renderer.drawIcon = function (ctx, type, team, size) {
     const r = size * 0.34;
+    const col = TEAM[team];
+    /* drawTurret needs a unit-like object; only the turreted vehicle shapes use it. */
+    const fake = { radius: r, shape: type.shape, domain: type.domain, maxRange: type.maxRange };
     ctx.save();
     ctx.translate(size / 2, size / 2);
-    const fake = { radius: r, shape: type.shape, domain: type.domain, maxRange: type.maxRange };
-    const col = TEAM[team];
-    switch (type.shape) {
-      case 'infantry': drawInfantry(ctx, r, col.main, col.dark, col.light); break;
-      case 'wheeled': drawWheeled(ctx, r, col.main, col.dark, col.light); drawTurret(ctx, r, fake, col.main, col.dark, col.light, 0); break;
-      case 'artillery': drawArtillery(ctx, r, col.main, col.dark, col.light, 0, 0, null); break;
-      case 'static': drawStatic(ctx, r, col.main, col.dark, col.light, 0, 0, null); break;
-      case 'drone': drawDrone(ctx, r, col.main, col.dark, col.light, null); break;
-      case 'heli': drawHeli(ctx, r, col.main, col.dark, col.light, null); break;
-      case 'jet': drawJet(ctx, r, col.main, col.dark, col.light); break;
-      case 'bomber': drawBomber(ctx, r, col.main, col.dark, col.light); break;
-      case 'boat': drawBoat(ctx, r, col.main, col.dark, col.light); break;
-      case 'ship': drawShip(ctx, r, col.main, col.dark, col.light); drawTurret(ctx, r, fake, col.main, col.dark, col.light, 0); break;
-      case 'carrier': drawCarrier(ctx, r, col.main, col.dark, col.light); break;
-      case 'sub': drawSub(ctx, r, col.main, col.dark, col.light); break;
-      default: drawTank(ctx, r, col.main, col.dark, col.light); drawTurret(ctx, r, fake, col.main, col.dark, col.light, 0); break;
+    drawShapeOf(ctx, type, r, col.main, col.dark, col.light, 0, 0, null);
+    if (type.shape === 'tank' || type.shape === 'ship' || type.shape === 'wheeled') {
+      drawTurret(ctx, r, fake, col.main, col.dark, col.light, 0);
     }
     ctx.restore();
   };

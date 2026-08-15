@@ -195,9 +195,30 @@
   UI.prototype.buildRoster = function () {
     const list = this.dom.rosterList;
     const g = this.game;
-    list.innerHTML = '';
-    const ids = Units.ORDER[this.activeDomain];
     const self = this;
+
+    /* Only show domains this side actually fields — the Animals edition has no
+     * navy at all, so a Sea tab would be an empty shelf. */
+    const allowed = W.Editions.rosterFor(g.playerTeam);
+    const buckets = ['land', 'air', 'sea'].filter(function (b) {
+      return Units.ORDER[b].some(function (id) { return allowed.indexOf(id) >= 0; });
+    });
+    const tabs = this.dom.roster.querySelectorAll('.tab');
+    for (let i = 0; i < tabs.length; i++) {
+      const d = tabs[i].getAttribute('data-domain');
+      tabs[i].classList.toggle('hidden', buckets.indexOf(d) === -1);
+    }
+    this.dom.roster.querySelector('.roster-tabs').style.gridTemplateColumns =
+      'repeat(' + Math.max(1, buckets.length) + ', 1fr)';
+    if (buckets.indexOf(this.activeDomain) === -1) this.activeDomain = buckets[0] || 'land';
+    for (let i = 0; i < tabs.length; i++) {
+      tabs[i].classList.toggle('active', tabs[i].getAttribute('data-domain') === this.activeDomain);
+    }
+
+    list.innerHTML = '';
+    const ids = Units.ORDER[this.activeDomain].filter(function (id) {
+      return allowed.indexOf(id) >= 0;
+    });
 
     ids.forEach(function (id) {
       const type = Units.TYPES[id];
@@ -299,6 +320,15 @@
   UI.prototype.refreshTallies = function () {
     const g = this.game;
     const d = this.dom;
+    const ed = W.Editions.current();
+
+    /* Side names come from the edition — "PETS" and "WILD", not "BLUE" and "RED". */
+    const short = (ed && ed.teamsShort) || ['BLUE', 'RED'];
+    d.tallyA.querySelector('.tally-name').textContent = short[0];
+    d.tallyB.querySelector('.tally-name').textContent = short[1];
+
+    const words = (ed && ed.words) || {};
+    const leftWord = words.unitsLeft || 'left';
 
     for (let team = 0; team < 2; team++) {
       const costEl = team === 0 ? d.costA : d.costB;
@@ -308,7 +338,7 @@
       if (g.battle) {
         count = g.battle.aliveUnits(team);
         cost = Math.round(g.battle.remainingValue(team));
-        sub = count + ' left';
+        sub = count + ' ' + leftWord;
       } else {
         const army = g.armies[team];
         cost = g.armyCost(team);
