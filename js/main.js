@@ -255,6 +255,7 @@
     this.concealed = false;
     this.undoStack = [];
     this.ui.setPhaseLabel('Deploy — ' + W.Editions.teamName(team));
+    this.ui.setRosterSide(team);
     this.ui.buildRoster();
     this.ui.refreshBudget();
     this.ui.refreshTallies();

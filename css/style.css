@@ -187,6 +187,12 @@ html, body {
   backdrop-filter: blur(6px);
 }
 
+/* Red's deployment zone is the east edge, which is exactly where the roster
+ * normally sits. Set on #app while Red places so the panel moves aside; it then
+ * covers Blue's half, which is concealed during pass-and-play anyway. */
+#app.roster-left #roster { right: auto; left: 12px; }
+#app.roster-left #actionbar { left: calc(var(--roster-w) + 24px); right: 12px; }
+
 .roster-handle { display: none; }
 
 .roster-tabs {
@@ -507,6 +513,10 @@ html, body {
     transition: transform 0.22s ease;
   }
   #roster.collapsed { transform: translateY(calc(100% - 46px - var(--safe-bottom))); }
+
+  /* The drawer spans the full width here, so there is no side to move it to. */
+  #app.roster-left #roster { left: 0; right: 0; }
+  #app.roster-left #actionbar { left: 12px; right: 12px; }
 
   .roster-handle {
     display: grid;

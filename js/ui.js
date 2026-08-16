@@ -12,6 +12,7 @@
   function UI(game) {
     this.game = game;
     this.dom = {
+      app: document.getElementById('app'),
       phaseLabel: document.getElementById('phaseLabel'),
       costA: document.getElementById('costA'),
       costB: document.getElementById('costB'),
@@ -73,7 +74,7 @@
      * #app lets the action bar follow the drawer down. */
     d.rosterHandle.addEventListener('click', function () {
       const collapsed = d.roster.classList.toggle('collapsed');
-      document.getElementById('app').classList.toggle('roster-collapsed', collapsed);
+      d.app.classList.toggle('roster-collapsed', collapsed);
     });
 
     this.bindPointer();
@@ -378,6 +379,12 @@
     t.classList.add('show');
     clearTimeout(this.toastTimer);
     this.toastTimer = setTimeout(function () { t.classList.remove('show'); }, 2200);
+  };
+
+  /* Keep the roster clear of the zone being deployed into: Red holds the east
+   * edge, so their panel goes left. See the .roster-left rules in the stylesheet. */
+  UI.prototype.setRosterSide = function (team) {
+    this.dom.app.classList.toggle('roster-left', team === 1);
   };
 
   UI.prototype.showPlacement = function (show) {
