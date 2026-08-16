@@ -42,6 +42,14 @@ Imperial hulls are individually tougher and their capitals hit hardest, but TIE 
 unshielded and die in droves. Rebel starfighters are shielded and punch far above their price
 against a capital ship; their warships are thinner and rely on speed.
 
+The **Death Star** costs 7,000 — more than three Star Destroyers, and out of reach below the
+8,000 budget. Its superlaser ends a capital ship per shot, so a fleet built on warships simply
+feeds it. Two things beat it, both the canonical ones: the superlaser will not arm against
+small craft, so bringing no warships at all leaves the main gun silent; and its plating never
+stopped a proton torpedo. Measured over seeded battles at comparable cost, it beats 8,000
+points of Mon Calamari cruisers, and loses to a wing of forty-odd Y-wings — which is roughly
+the same trade the films made.
+
 Maps carry planets, asteroid belts, nebulae and drifting hulks. Nebula gas drags a hull down
 to 60% speed, dust and debris to 90%, and nothing at all flies through a planet.
 

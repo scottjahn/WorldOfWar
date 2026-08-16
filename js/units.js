@@ -61,7 +61,8 @@
       lead: true,         // aim at where the target will be
       turnRate: 3.2,      // homing weapons only
       color: '#ffd98a',
-      tracerWidth: 1.6
+      tracerWidth: 1.6,
+      beam: false         // draw as a lance with a glowing core, not a short streak
     }, def);
   }
 

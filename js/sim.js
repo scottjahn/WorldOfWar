@@ -879,7 +879,10 @@
 
     if (d.splash > 0) this.splashDamage(d, x, y, p.team, directHit, p.owner);
 
-    const big = Math.max(8, d.splash * 0.8 + d.dmg * 0.05);
+    /* Capped: the fireball is scaled off raw damage, and a superlaser's four
+     * figures of it would otherwise bloom across a third of the map. Every
+     * conventional weapon in the game lands well under this. */
+    const big = Math.min(200, Math.max(8, d.splash * 0.8 + d.dmg * 0.05));
     this.effects.push({ kind: 'boom', x: x, y: y, t: 0, life: 0.25 + big * 0.004, size: big });
     /* Craters are permanent, so only scar ground that can actually hold one.
      * Shells landing in the sea used to stack into a black hole on the water. */

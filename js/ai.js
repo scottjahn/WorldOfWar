@@ -101,6 +101,14 @@
       name: 'Static Cordon', faction: 1,
       picks: [['golan', 1.6], ['arquitens', 1.6], ['raider', 1.4], ['tie', 2.2],
         ['tiebomber', 1.4], ['victory', 0.9]]
+    },
+    {
+      /* Only reachable on the larger budgets — the station alone is 6,000, and
+       * `affordable` simply never offers it below that. The escorts matter:
+       * unscreened, the thing is a very large target for a bomber wing. */
+      name: 'Battle Station', faction: 1,
+      picks: [['deathstar', 3], ['raider', 1.8], ['tieint', 2.0], ['tie', 1.8],
+        ['arquitens', 1.2], ['gunboat', 1.2]]
     }
   ];
 
@@ -229,7 +237,7 @@
     wolf: 0.66, hyena: 0.6, lynx: 0.56, cheetah: 0.5, eagle: 0.4, vulture: 0.45,
     /* Space: the capitals form the line, the fighter screen launches from behind
      * it, and the immobile guns and the tender sit at the very back. */
-    ionplatform: 0.12, golan: 0.12, gr75: 0.18, shuttle: 0.18,
+    ionplatform: 0.12, golan: 0.12, gr75: 0.18, shuttle: 0.18, deathstar: 0.3,
     isd: 0.5, mc80: 0.5, victory: 0.55, nebulonb: 0.5, mc30: 0.45,
     arquitens: 0.62, cr90: 0.68, raider: 0.68, gozanti: 0.55,
     ywing: 0.75, bwing: 0.75, tiebomber: 0.75, gunboat: 0.78,

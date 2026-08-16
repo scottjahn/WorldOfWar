@@ -49,7 +49,7 @@
       'z95', 'awing', 'xwing', 'ywing', 'gr75', 'bwing', 'yt1300', 'ionplatform',
       'cr90', 'nebulonb', 'mc30', 'mc80', 'xwingw',
       'tie', 'tieint', 'tiebomber', 'gunboat', 'shuttle', 'golan', 'gozanti',
-      'tiedef', 'raider', 'arquitens', 'victory', 'isd', 'tiew'
+      'tiedef', 'raider', 'arquitens', 'victory', 'isd', 'tiew', 'deathstar'
     ],
     prehistoric: [
       'compsognathus', 'gallimimus', 'velociraptor', 'parasaurolophus', 'dilophosaurus',

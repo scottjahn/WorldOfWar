@@ -790,6 +790,25 @@
         continue;
       }
 
+      /* A beam draws as a long lance with a glow around a white-hot core,
+       * rather than the short streak every other bolt gets. */
+      if (d.beam) {
+        const bl = 150;
+        const bx = p.x - Math.cos(p.hdg) * bl, by = p.y - Math.sin(p.hdg) * bl;
+        ctx.globalAlpha = 0.32;
+        ctx.strokeStyle = d.color;
+        ctx.lineWidth = d.tracerWidth * 3;
+        ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(p.x, p.y); ctx.stroke();
+        ctx.globalAlpha = 0.9;
+        ctx.lineWidth = d.tracerWidth;
+        ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(p.x, p.y); ctx.stroke();
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = '#f2fff0';
+        ctx.lineWidth = d.tracerWidth * 0.35;
+        ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(p.x, p.y); ctx.stroke();
+        continue;
+      }
+
       /* Tracer: a short streak along the direction of travel. */
       const len = Math.min(22, U.dist(p.px, p.py, p.x, p.y) + 6);
       ctx.globalAlpha = 0.95;
@@ -1296,6 +1315,7 @@
       case 'escort': drawEscort(ctx, r, body, dark, light); break;
       case 'raider': drawRaider(ctx, r, body, dark, light); break;
       case 'wedge': drawWedge(ctx, r, body, dark, light); break;
+      case 'station': drawStation(ctx, r, body, dark, light, hdg, turret); break;
       default: drawTank(ctx, r, body, dark, light); break;
     }
   }
@@ -2358,6 +2378,62 @@
       ctx.arc(-r * 1.33, bells[i] * r, i < 3 ? r * 0.15 : r * 0.1, 0, U.TAU);
       ctx.fill();
     }
+  }
+
+  /* The Death Star. Drawn as a lit sphere rather than a hull, with the dish
+   * swung round to the turret bearing the way the artillery barrel is — the
+   * station turns far too slowly for a fixed dish to ever face what it is
+   * shooting at. */
+  function drawStation(ctx, r, body, dark, light, hdg, turret) {
+    ctx.fillStyle = dark;
+    ctx.beginPath(); ctx.arc(0, 0, r, 0, U.TAU); ctx.fill();
+
+    ctx.save();
+    ctx.beginPath(); ctx.arc(0, 0, r * 0.96, 0, U.TAU); ctx.clip();
+    ctx.fillStyle = body;
+    ctx.fillRect(-r, -r, r * 2, r * 2);
+
+    ctx.strokeStyle = dark;                                // surface panelling
+    ctx.lineWidth = Math.max(0.6, r * 0.016);
+    for (let i = -3; i <= 3; i++) {
+      if (i === 0) continue;
+      ctx.beginPath();
+      ctx.moveTo(-r, i * r * 0.26); ctx.lineTo(r, i * r * 0.26);
+      ctx.stroke();
+    }
+
+    ctx.fillStyle = dark;                                  // equatorial trench
+    ctx.fillRect(-r, -r * 0.08, r * 2, r * 0.16);
+    ctx.fillStyle = light;
+    ctx.globalAlpha = 0.4;
+    ctx.fillRect(-r, -r * 0.08, r * 2, r * 0.028);
+    ctx.globalAlpha = 1;
+
+    const night = ctx.createLinearGradient(-r * 0.35, -r * 0.45, r, r);
+    night.addColorStop(0, 'rgba(0,0,0,0)');
+    night.addColorStop(1, 'rgba(0,0,0,0.55)');
+    ctx.fillStyle = night;
+    ctx.fillRect(-r, -r, r * 2, r * 2);
+    ctx.restore();
+
+    ctx.strokeStyle = light;                               // lit limb
+    ctx.globalAlpha = 0.45;
+    ctx.lineWidth = Math.max(1, r * 0.022);
+    ctx.beginPath(); ctx.arc(0, 0, r * 0.97, Math.PI * 1.05, Math.PI * 1.9); ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    ctx.rotate(-hdg);
+    ctx.rotate(turret || 0);
+    const dx = r * 0.46, dr = r * 0.3;                     // superlaser dish
+    ctx.fillStyle = dark;
+    ctx.beginPath(); ctx.arc(dx, 0, dr, 0, U.TAU); ctx.fill();
+    ctx.fillStyle = '#0c130f';
+    ctx.beginPath(); ctx.arc(dx, 0, dr * 0.78, 0, U.TAU); ctx.fill();
+    ctx.strokeStyle = light;
+    ctx.lineWidth = Math.max(1, r * 0.026);
+    ctx.beginPath(); ctx.arc(dx, 0, dr * 0.78, 0, U.TAU); ctx.stroke();
+    ctx.fillStyle = '#9dff86';                             // focusing lens
+    ctx.beginPath(); ctx.arc(dx, 0, dr * 0.3, 0, U.TAU); ctx.fill();
   }
 
   function roundRect(ctx, x, y, w, h, r) {

@@ -491,6 +491,36 @@
       ]
     }),
 
+    deathstar: unit({
+      /* Priced above three Star Destroyers, and deliberately out of reach below
+       * the 8,000 budget. At 8,000 it is very nearly the whole order of battle,
+       * which is its own balance: an unescorted station is what a bomber wing
+       * was built to eat. */
+      name: 'Death Star', faction: 1, domain: SHIP, cost: 7000, hp: 30000, armor: 105,
+      speed: 18, radius: 58, shape: 'station', move: 'ground', turnRate: 0.1,
+      role: 'Battle station', tags: ['capital'],
+      desc: 'A moon-sized station that ends a capital ship per shot and shrugs off turbolaser ' +
+        'fire the way a Star Destroyer shrugs off a blaster. Two things beat it. The superlaser ' +
+        'will not arm against small craft, so a fleet with no warships in it leaves the main gun ' +
+        'silent — and its plating, thick as it is, was never meant to stop a proton torpedo. ' +
+        'Get enough bombers past the surface batteries and it comes apart.',
+      squadron: { type: 'tiew', count: 8, respawn: 12, reserve: 8 },
+      weapons: [
+        {
+          name: 'Superlaser', kind: 'tracer', dmg: 9000, pen: 500, range: 1600, cd: 20,
+          speed: 1100, spread: 0.008, splash: 150, beam: true,
+          targets: SHIP, onlyTag: 'capital', color: '#9dff86', tracerWidth: 9
+        },
+        turbolaser({
+          name: 'Heavy Turbolasers', dmg: 300, pen: 150, range: 1000, cd: 3.2,
+          salvo: 4, salvoDelay: 0.22, splash: 30, color: IMP, tracerWidth: 3.6, prefersTag: null
+        }),
+        pointDefence({ name: 'Surface Batteries', dmg: 24, pen: 34, range: 650, cd: 0.06, color: IMP }),
+        pointDefence({ name: 'Equatorial Batteries', dmg: 24, pen: 34, range: 650, cd: 0.06, color: IMP }),
+        pointDefence({ name: 'Trench Batteries', dmg: 24, pen: 34, range: 650, cd: 0.06, color: IMP })
+      ]
+    }),
+
     /* Flown off the Imperial-class and the Gozanti. Not for sale — see xwingw. */
     tiew: unit({
       name: 'TIE Fighter', faction: 1, domain: SHIP, cost: 0, hp: 75, armor: 5, hidden: true,
