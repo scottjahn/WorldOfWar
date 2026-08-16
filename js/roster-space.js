@@ -507,8 +507,11 @@
       squadron: { type: 'tiew', count: 8, respawn: 12, reserve: 8 },
       weapons: [
         {
+          /* Fixed in the bow — the dish is the emplacement, so the station has
+           * to swing its whole mass onto a target before it can fire. */
           name: 'Superlaser', kind: 'tracer', dmg: 9000, pen: 500, range: 1600, cd: 20,
           speed: 1100, spread: 0.008, splash: 150, beam: true,
+          boresight: true, arc: 0.35,
           targets: SHIP, onlyTag: 'capital', color: '#9dff86', tracerWidth: 9
         },
         turbolaser({

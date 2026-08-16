@@ -1315,7 +1315,7 @@
       case 'escort': drawEscort(ctx, r, body, dark, light); break;
       case 'raider': drawRaider(ctx, r, body, dark, light); break;
       case 'wedge': drawWedge(ctx, r, body, dark, light); break;
-      case 'station': drawStation(ctx, r, body, dark, light, hdg, turret); break;
+      case 'station': drawStation(ctx, r, body, dark, light); break;
       default: drawTank(ctx, r, body, dark, light); break;
     }
   }
@@ -2380,11 +2380,11 @@
     }
   }
 
-  /* The Death Star. Drawn as a lit sphere rather than a hull, with the dish
-   * swung round to the turret bearing the way the artillery barrel is — the
-   * station turns far too slowly for a fixed dish to ever face what it is
-   * shooting at. */
-  function drawStation(ctx, r, body, dark, light, hdg, turret) {
+  /* The Death Star. A lit sphere rather than a hull, and the dish is part of
+   * that hull: it is the superlaser emplacement and nothing else, so it does
+   * not traverse and never tracks a target the main gun cannot even fire on.
+   * The station aims it by turning, which is why it sits on the bow. */
+  function drawStation(ctx, r, body, dark, light) {
     ctx.fillStyle = dark;
     ctx.beginPath(); ctx.arc(0, 0, r, 0, U.TAU); ctx.fill();
 
@@ -2422,9 +2422,7 @@
     ctx.beginPath(); ctx.arc(0, 0, r * 0.97, Math.PI * 1.05, Math.PI * 1.9); ctx.stroke();
     ctx.globalAlpha = 1;
 
-    ctx.rotate(-hdg);
-    ctx.rotate(turret || 0);
-    const dx = r * 0.46, dr = r * 0.3;                     // superlaser dish
+    const dx = r * 0.5, dr = r * 0.29;                     // superlaser dish, on the bow
     ctx.fillStyle = dark;
     ctx.beginPath(); ctx.arc(dx, 0, dr, 0, U.TAU); ctx.fill();
     ctx.fillStyle = '#0c130f';

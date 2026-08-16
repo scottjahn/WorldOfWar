@@ -734,6 +734,16 @@
       const dist = U.dist(u.x, u.y, tgt.x, tgt.y);
       if (dist > d.range || dist < d.minRange) continue;
 
+      /* A boresight mount is bolted to the hull and has no traverse of its own,
+       * so the whole platform has to be pointed at the target. Checked against
+       * the hull rather than the turret, and checked unconditionally — the gate
+       * below only applies to the mount the turret is actually slewing to,
+       * which a fixed emplacement never is. */
+      if (d.boresight) {
+        const bore = M.atan2(tgt.y - u.y, tgt.x - u.x);
+        if (Math.abs(U.angleDiff(u.hdg, bore)) > d.arc) continue;
+      }
+
       /* Direct-fire weapons need the turret roughly on target first. Guided
        * weapons get a much wider arc — they steer themselves, and a boresight
        * gate made air-launched missiles nearly unusable, since a fixed-wing
@@ -741,7 +751,7 @@
       /* Only the mount the turret is actually slewing to is arc-limited. A mount
        * engaging its own secondary target (a ship's AA battery while the main gun
        * tracks a surface contact) is a separate mount and trains independently. */
-      if (d.kind !== 'shell' && tgt === u.target) {
+      if (d.kind !== 'shell' && !d.boresight && tgt === u.target) {
         const want = M.atan2(tgt.y - u.y, tgt.x - u.x);
         const arc = (d.kind === 'missile' || d.kind === 'torpedo') ? 1.3 : 0.3;
         if (Math.abs(U.angleDiff(u.turret, want)) > arc) continue;
@@ -758,9 +768,12 @@
 
   Battle.prototype.fireOne = function (u, w, tgt) {
     const d = w.def;
+    /* A boresight mount sits on the bow and does not traverse, so its round
+     * leaves along the hull's heading rather than the turret's bearing. */
+    const bearing = d.boresight ? u.hdg : u.turret;
     const muzzle = u.radius + 4;
-    const sx = u.x + M.cos(u.turret) * muzzle;
-    const sy = u.y + M.sin(u.turret) * muzzle;
+    const sx = u.x + M.cos(bearing) * muzzle;
+    const sy = u.y + M.sin(bearing) * muzzle;
 
     /* Lead the target based on flight time. */
     let aimX = tgt.x, aimY = tgt.y;
@@ -783,7 +796,7 @@
 
     u.recoil = 1;
     u.flash = 1;
-    this.effects.push({ kind: 'muzzle', x: sx, y: sy, a: u.turret, t: 0, life: 0.09, size: 3 + d.tracerWidth * 2 });
+    this.effects.push({ kind: 'muzzle', x: sx, y: sy, a: bearing, t: 0, life: 0.09, size: 3 + d.tracerWidth * 2 });
   };
 
   function velocityOf(u) {

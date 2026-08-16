@@ -62,7 +62,9 @@
       turnRate: 3.2,      // homing weapons only
       color: '#ffd98a',
       tracerWidth: 1.6,
-      beam: false         // draw as a lance with a glowing core, not a short streak
+      beam: false,        // draw as a lance with a glowing core, not a short streak
+      boresight: false,   // fixed to the hull: the platform must turn to aim it
+      arc: 0.4            // boresight only — how far off the bow it will still fire
     }, def);
   }
 
