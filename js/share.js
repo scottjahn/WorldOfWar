@@ -43,7 +43,8 @@
       'hamster', 'pigeon', 'rabbit', 'budgie', 'housecat', 'ferret', 'terrier', 'parrot',
       'bulldog', 'tortoise', 'guarddog', 'pig',
       'vulture', 'hyena', 'boar', 'lynx', 'wolf', 'eagle', 'cheetah', 'crocodile',
-      'lion', 'bear', 'rhino'
+      'lion', 'bear', 'rhino',
+      'cornsnake', 'ballpython', 'boa', 'rattlesnake', 'cobra', 'mamba'
     ],
     space: [
       'z95', 'awing', 'xwing', 'ywing', 'gr75', 'bwing', 'yt1300', 'ionplatform',
@@ -57,7 +58,8 @@
       'triceratops', 'mammoth', 'spinosaurus', 'trex', 'brachiosaurus',
       'meganeura', 'microraptor', 'rhamphorhynchus', 'pteranodon', 'quetzalcoatlus',
       'ammonite', 'ichthyosaur', 'archelon', 'dunkleosteus', 'elasmosaurus',
-      'mosasaurus', 'megalodon'
+      'mosasaurus', 'megalodon',
+      'sanajeh', 'titanoboa', 'palaeophis'
     ]
   };
 

@@ -1281,6 +1281,8 @@
       case 'beast': drawBeast(ctx, r, body, dark, light); break;
       case 'bird': drawBird(ctx, r, body, dark, light, live); break;
       case 'shelled': drawShelled(ctx, r, body, dark, light); break;
+      case 'serpent': drawSerpent(ctx, r, body, dark, light, false); break;
+      case 'viper': drawSerpent(ctx, r, body, dark, light, true); break;
       case 'theropod': drawTheropod(ctx, r, body, dark, light, false); break;
       case 'sailback': drawTheropod(ctx, r, body, dark, light, true); break;
       case 'sauropod': drawSauropod(ctx, r, body, dark, light); break;
@@ -1447,6 +1449,60 @@
       ctx.moveTo(Math.cos(a) * r * 0.4, Math.sin(a) * r * 0.3);
       ctx.lineTo(Math.cos(a) * r * 0.8, Math.sin(a) * r * 0.62);
       ctx.stroke();
+    }
+  }
+
+  /* Snakes, in both Animals and Prehistoric. No limbs to hang off the body, so
+   * the whole animal is one tapering S-curve laid down as overlapping discs —
+   * a stroked path cannot taper, and a snake that does not thin toward the tail
+   * reads as a worm. `venom` swaps the constrictor's blunt head for a hooded
+   * wedge skull with a flicking tongue, which is the only thing that tells the
+   * two kinds apart at roster-icon size. */
+  function drawSerpent(ctx, r, body, dark, light, venom) {
+    const TAIL = -1.5, NECK = 0.62;
+    const SEG = 16;
+    /* Dark pass first, slightly fatter, for the outline the other animals get
+     * from an ellipse under an ellipse. The amplitude has to stay well clear of
+     * the body thickness or the coils merge and the whole animal reads as one
+     * fat sausage. */
+    for (let pass = 0; pass < 2; pass++) {
+      ctx.fillStyle = pass === 0 ? dark : body;
+      for (let i = 0; i <= SEG; i++) {
+        const t = i / SEG;
+        const x = (TAIL + (NECK - TAIL) * t) * r;
+        /* Amplitude falls to nothing at the head so the animal ends pointing
+         * along its own heading rather than off at the angle of the last bend. */
+        const y = Math.sin((t - 1) * 7.4) * r * 0.66 * (1 - t * t);
+        const w = r * (0.06 + 0.22 * Math.min(1, t * 2)) * (pass === 0 ? 1.22 : 1);
+        ctx.beginPath(); ctx.arc(x, y, w, 0, U.TAU); ctx.fill();
+      }
+    }
+
+    if (venom) {
+      ctx.fillStyle = dark;                                  // spread hood
+      ctx.beginPath(); ctx.ellipse(r * 0.62, 0, r * 0.4, r * 0.52, 0, 0, U.TAU); ctx.fill();
+      ctx.fillStyle = body;                                  // wedge skull
+      ctx.beginPath();
+      ctx.moveTo(r * 0.6, -r * 0.32); ctx.lineTo(r * 1.18, -r * 0.11);
+      ctx.lineTo(r * 1.18, r * 0.11); ctx.lineTo(r * 0.6, r * 0.32);
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = light; ctx.lineCap = 'round';        // forked tongue
+      ctx.lineWidth = Math.max(1, r * 0.07);
+      ctx.beginPath();
+      ctx.moveTo(r * 1.16, 0); ctx.lineTo(r * 1.42, 0);
+      ctx.moveTo(r * 1.42, 0); ctx.lineTo(r * 1.6, -r * 0.14);
+      ctx.moveTo(r * 1.42, 0); ctx.lineTo(r * 1.6, r * 0.14);
+      ctx.stroke();
+    } else {
+      ctx.fillStyle = body;                                  // blunt head
+      ctx.beginPath(); ctx.ellipse(r * 0.88, 0, r * 0.36, r * 0.28, 0, 0, U.TAU); ctx.fill();
+      ctx.fillStyle = light;                                 // snout
+      ctx.beginPath(); ctx.ellipse(r * 1.18, 0, r * 0.14, r * 0.1, 0, 0, U.TAU); ctx.fill();
+    }
+
+    ctx.fillStyle = light;                                   // eyes
+    for (let i = -1; i <= 1; i += 2) {
+      ctx.beginPath(); ctx.arc(r * 0.82, i * r * 0.15, Math.max(1, r * 0.07), 0, U.TAU); ctx.fill();
     }
   }
 

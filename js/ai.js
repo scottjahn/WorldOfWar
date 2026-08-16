@@ -16,7 +16,14 @@
     {
       name: 'The Whole Litter', faction: 0,
       picks: [['hamster', 4], ['rabbit', 3.5], ['pigeon', 3], ['housecat', 2.5],
-        ['budgie', 2], ['ferret', 1.6], ['terrier', 1.4]]
+        ['budgie', 2], ['cornsnake', 2], ['ferret', 1.6], ['terrier', 1.4]]
+    },
+    {
+      /* Slow and blind to anything airborne, so the cat is what keeps a vivarium
+       * from being free food for a flock. */
+      name: 'The Vivarium', faction: 0,
+      picks: [['cornsnake', 3], ['ballpython', 2.4], ['boa', 1.8], ['tortoise', 1.6],
+        ['housecat', 1.6], ['terrier', 1.2]]
     },
     {
       name: 'Pedigree Line', faction: 0,
@@ -31,16 +38,27 @@
     {
       name: 'Garden Wall', faction: 0,
       picks: [['tortoise', 2.4], ['bulldog', 2.2], ['pig', 1.6], ['housecat', 1.6],
-        ['guarddog', 1.2], ['hamster', 1.6]]
+        ['boa', 1.6], ['guarddog', 1.2], ['hamster', 1.6]]
     },
     {
       name: 'Pack Hunt', faction: 1,
-      picks: [['wolf', 2.6], ['hyena', 2.4], ['cheetah', 1.6], ['lynx', 1.4], ['boar', 1.2]]
+      picks: [['wolf', 2.6], ['hyena', 2.4], ['cheetah', 1.6], ['mamba', 1.4],
+        ['lynx', 1.4], ['boar', 1.2]]
     },
     {
       name: 'Apex Predators', faction: 1,
       picks: [['lion', 2.2], ['bear', 1.6], ['rhino', 1.2], ['wolf', 1.6],
-        ['crocodile', 1.2], ['lynx', 1]]
+        ['crocodile', 1.2], ['cobra', 1.2], ['lynx', 1]]
+    },
+    {
+      /* Venom is the answer to armour, not to numbers. Every snake here is thin
+       * and slow and only the cobra can reach a bird, so the boar and the lynx are
+       * load-bearing: without bodies in front and something that looks up, a list
+       * of pure vipers loses to a flock or to weight of numbers before its
+       * penetration ever gets to matter. */
+      name: 'Venom', faction: 1,
+      picks: [['rattlesnake', 2.4], ['cobra', 2.2], ['mamba', 1.8], ['boar', 1.6],
+        ['lynx', 1.6], ['hyena', 1.2]]
     },
     {
       name: 'Sky Hunters', faction: 1,
@@ -128,13 +146,22 @@
        * fed to whatever heavy it runs into. */
       name: 'The Whole Nesting Ground',
       picks: [['compsognathus', 3.2], ['gallimimus', 2.2], ['parasaurolophus', 1.8],
-        ['meganeura', 2.0], ['microraptor', 1.6], ['velociraptor', 1.8],
+        ['meganeura', 2.0], ['microraptor', 1.6], ['velociraptor', 1.8], ['sanajeh', 1.8],
         ['pachycephalosaurus', 2.0], ['allosaurus', 1.4], ['dilophosaurus', 1.2]]
     },
     {
       name: 'Apex Predators',
       picks: [['trex', 1.4], ['allosaurus', 2.0], ['spinosaurus', 1.4],
-        ['smilodon', 1.6], ['velociraptor', 1.6], ['dilophosaurus', 1.0]]
+        ['smilodon', 1.6], ['titanoboa', 1.4], ['velociraptor', 1.6],
+        ['dilophosaurus', 1.0]]
+    },
+    {
+      /* Everything in it is an ambusher with no reach and no answer to a flyer,
+       * so the spitter and the raptors are carrying the sky for the whole list. */
+      name: 'The Long Grass',
+      picks: [['sanajeh', 2.4], ['titanoboa', 1.6], ['smilodon', 1.8],
+        ['velociraptor', 1.6], ['dilophosaurus', 1.4], ['allosaurus', 1.2],
+        ['parasaurolophus', 1.2]]
     },
     {
       /* Most of a herd cannot reach a pterosaur at all, so the spitter and the
@@ -163,7 +190,7 @@
        * touch a herd that stayed on the grass, and the clock decides it. */
       name: 'Deep Water',
       picks: [['mosasaurus', 1.6], ['megalodon', 1.0], ['dunkleosteus', 1.8],
-        ['elasmosaurus', 1.8], ['ichthyosaur', 2.0], ['archelon', 1.4],
+        ['elasmosaurus', 1.8], ['ichthyosaur', 2.0], ['archelon', 1.4], ['palaeophis', 1.8],
         ['ammonite', 1.4], ['pteranodon', 2.0], ['rhamphorhynchus', 1.8],
         ['quetzalcoatlus', 0.9], ['spinosaurus', 0.9]],
       /* A high bar on purpose. A river is not enough water to commit an army to —
@@ -174,7 +201,7 @@
     {
       name: 'Shoreline',
       picks: [['spinosaurus', 1.4], ['elasmosaurus', 1.6], ['archelon', 1.2],
-        ['ichthyosaur', 1.4], ['triceratops', 1.6], ['allosaurus', 1.6],
+        ['ichthyosaur', 1.4], ['palaeophis', 1.6], ['triceratops', 1.6], ['allosaurus', 1.6],
         ['pteranodon', 1.4], ['parasaurolophus', 1.4], ['compsognathus', 1.6]],
       needsSea: 0.10
     }
@@ -233,8 +260,12 @@
     tortoise: 0.85, bulldog: 0.8, pig: 0.78, guarddog: 0.7, terrier: 0.7,
     housecat: 0.6, ferret: 0.6, rabbit: 0.55, hamster: 0.5,
     pigeon: 0.5, budgie: 0.45, parrot: 0.4,
+    boa: 0.84, ballpython: 0.82, cornsnake: 0.6,
     rhino: 0.82, bear: 0.8, crocodile: 0.84, boar: 0.76, lion: 0.7,
     wolf: 0.66, hyena: 0.6, lynx: 0.56, cheetah: 0.5, eagle: 0.4, vulture: 0.45,
+    /* The ambushers start forward and the mamba sweeps from behind, same split
+     * the four-legged roster already has. */
+    rattlesnake: 0.86, cobra: 0.72, mamba: 0.5,
     /* Space: the capitals form the line, the fighter screen launches from behind
      * it, and the immobile guns and the tender sit at the very back. */
     ionplatform: 0.12, golan: 0.12, gr75: 0.18, shuttle: 0.18, deathstar: 0.3,
@@ -249,6 +280,7 @@
     mammoth: 0.78, parasaurolophus: 0.76, pachycephalosaurus: 0.72,
     spinosaurus: 0.7, trex: 0.66, allosaurus: 0.64, smilodon: 0.56,
     velociraptor: 0.54, gallimimus: 0.5, compsognathus: 0.6, dilophosaurus: 0.32,
+    titanoboa: 0.74, sanajeh: 0.62, palaeophis: 0.5,
     quetzalcoatlus: 0.4, pteranodon: 0.42, rhamphorhynchus: 0.46,
     microraptor: 0.5, meganeura: 0.5,
     ammonite: 0.8, archelon: 0.76, dunkleosteus: 0.6, ichthyosaur: 0.5,

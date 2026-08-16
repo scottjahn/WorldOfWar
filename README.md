@@ -23,6 +23,15 @@ and bite softly — a hamster can barely scratch a rhino, so a swarm needs its o
 Animals are big, fast and expensive, and can be dragged down by weight of numbers. Cats and
 lynxes are the only cheap answers to anything airborne.
 
+Snakes split along the same line. Non-venomous constrictors — a corn snake, a ball python, a
+boa — are Household Pets, and they crush: a lot of damage that thick hide still blunts, which
+is the Pets' weakness written into one unit. Venomous snakes are Killer Animals, and venom
+does the opposite: a rattlesnake, a king cobra or a black mamba penetrates better than
+anything else on the field and hits softer than a wolf for the price. Since the two sides
+never share a roster, that crossover is tuned against pet armour and nothing else — venom is
+a poor answer to a swarm of hamsters and the best answer in the edition to a tortoise, a
+pot-bellied pig or a bulldog.
+
 Despite the name nothing is killed: an animal whose stamina runs out turns tail and bolts off
 the field.
 
@@ -68,6 +77,11 @@ Dilophosaurus, which spits venom nearly 200 units and is the only thing here tha
 something it is not touching. Reach still varies enormously without being ranged — an
 Elasmosaurus swings a neck twice as long as anything else's bite, so it fights from the
 second rank.
+
+Snakes run the length of that roster too: Sanajeh raiding nests on the cheap end, Titanoboa
+constricting in the swamp, and Palaeophis in the shallows — the cheapest thing in the water
+that can take something walking the shoreline. All three crush rather than shear, so they are
+strong against soft herbivores and blunted by an Ankylosaur's scutes.
 
 Nothing is killed on screen. A beaten animal breaks and runs, the same as in Animals — a
 Triceratops does not explode.

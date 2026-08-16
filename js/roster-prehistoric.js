@@ -16,6 +16,11 @@
  *     anything else's bite, so it hits first and hits things standing on the
  *     shore — or flying low over it.
  *
+ * Snakes run the length of the roster — Sanajeh raiding nests, Titanoboa in the
+ * swamp and Palaeophis in the shallows. All three constrict rather than shear, so
+ * their `dmg` is high for the price and their `pen` deliberately is not: a coil
+ * that folds a Parasaurolophus still slides off an Ankylosaur's scutes.
+ *
  * Domain reach, and why the three lists need each other
  * -----------------------------------------------------
  * Marine reptiles cannot leave the water and the herds cannot enter it, so on a
@@ -64,6 +69,14 @@
       role: 'Outrunner',
       desc: 'The fastest thing on two legs. Built to get behind a herd and trample whatever soft units are standing there.',
       weapons: [bite({ name: 'Kick', dmg: 13, pen: 9, range: 30, cd: 0.6 })]
+    }),
+
+    sanajeh: unit({
+      name: 'Sanajeh', domain: LAND, cost: 44, hp: 120, armor: 4,
+      speed: 84, radius: 9, shape: 'serpent', turnRate: 5,
+      role: 'Nest raider',
+      desc: 'A three metre snake that made its living inside other animals\' nests. Cheap, quiet and a real problem for anything soft it can get a coil around.',
+      weapons: [bite({ name: 'Coil', dmg: 24, pen: 20, range: 28, cd: 0.75 })]
     }),
 
     velociraptor: unit({
@@ -131,6 +144,14 @@
       role: 'Walking fortress',
       desc: 'Small teeth simply bounce off the scutes. In exchange it arrives late to everything, and it swings a bone club at whatever is left when it does.',
       weapons: [bite({ name: 'Tail Club', dmg: 110, pen: 74, range: 40, cd: 1.4, splash: 30 })]
+    }),
+
+    titanoboa: unit({
+      name: 'Titanoboa', domain: LAND, cost: 285, hp: 900, armor: 20,
+      speed: 58, radius: 17, shape: 'serpent', turnRate: 3.2,
+      role: 'Constrictor',
+      desc: 'Thirteen metres and a tonne of snake, and the hardest squeeze anything here will ever be in. It crushes rather than cuts, so the armoured herbivores are the one thing it cannot simply fold up.',
+      weapons: [bite({ name: 'Constriction', dmg: 175, pen: 84, range: 42, cd: 1.7 })]
     }),
 
     triceratops: unit({
@@ -245,6 +266,14 @@
       role: 'Armoured screen',
       desc: 'A four metre sea turtle. Nothing cheap gets through the shell, and it will spend most of the battle deciding where to be.',
       weapons: [bite({ name: 'Beak', dmg: 42, pen: 32, range: 32, cd: 1.2, targets: SEA })]
+    }),
+
+    palaeophis: unit({
+      name: 'Palaeophis', domain: SEA, cost: 145, hp: 380, armor: 10,
+      speed: 116, radius: 13, shape: 'serpent', move: 'naval', turnRate: 2.6, accel: 90,
+      role: 'Shallows hunter',
+      desc: 'Nine metres of sea snake, and the cheapest thing in the water that can take something walking the shoreline. Quick, and far too thin-skinned to trade with the armoured swimmers.',
+      weapons: [bite({ name: 'Strike', dmg: 74, pen: 76, range: 36, cd: 0.7 })]
     }),
 
     dunkleosteus: unit({

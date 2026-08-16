@@ -11,6 +11,21 @@
  * Balance shape: Pets are cheap and numerous with low `pen`, so a swarm struggles
  * to bite through a Rhino's hide and needs its own heavies. Killers are expensive
  * and armoured but can be dragged down by weight of numbers.
+ *
+ * Snakes split along the same line the factions do, and they are the one place
+ * where `pen` runs *above* `dmg`. A constrictor is a pet: it crushes, which is a
+ * lot of damage that hide still blunts, so its `pen` stays low like the rest of
+ * the Pets. Venom is a Killer: it goes under the skin regardless of what the skin
+ * is made of, so a viper's `pen` is the highest on the field and its `dmg` the
+ * softest for the price.
+ *
+ * The crossover is tuned against the armour a venomous snake will actually meet,
+ * which is a Pet's and nothing else's — factions mean a Mamba never fights a
+ * Rhino. Pet armour tops out at a Tortoise's 30, so the venom units are priced to
+ * come out behind a Wolf or a Lynx against the soft end of the litter and ahead of
+ * them from a Bulldog's hide upward. Pitching that crossover at Rhino armour, as
+ * an unfactioned edition would, simply makes them worse units in every fight they
+ * are ever in.
  */
 (function (W) {
   'use strict';
@@ -42,6 +57,14 @@
       role: 'Flock filler',
       desc: 'Ignores every fence and hedge on the field. Harmless individually, genuinely annoying in a flock.',
       weapons: [bite({ name: 'Peck', dmg: 5, pen: 3, range: 28, cd: 0.6, targets: ALL })]
+    }),
+
+    cornsnake: unit({
+      name: 'Corn Snake', faction: 0, domain: LAND, cost: 14, hp: 42, armor: 0,
+      speed: 70, radius: 7, shape: 'serpent', turnRate: 6,
+      role: 'Vivarium chaff',
+      desc: 'The starter snake, and it fights like one. Cheap enough that the garden can be full of them.',
+      weapons: [bite({ name: 'Nip', dmg: 5, pen: 4, range: 26, cd: 0.65 })]
     }),
 
     rabbit: unit({
@@ -76,6 +99,14 @@
       weapons: [bite({ name: 'Bite', dmg: 18, pen: 14, range: 30, cd: 0.55 })]
     }),
 
+    ballpython: unit({
+      name: 'Ball Python', faction: 0, domain: LAND, cost: 36, hp: 150, armor: 5,
+      speed: 38, radius: 10, shape: 'serpent', turnRate: 4,
+      role: 'Cheap holder',
+      desc: 'More body than anything else at the price, and almost none of it is in a hurry. Whatever it does get hold of stops moving.',
+      weapons: [bite({ name: 'Coil', dmg: 32, pen: 18, range: 30, cd: 1.15 })]
+    }),
+
     terrier: unit({
       name: 'Terrier', faction: 0, domain: LAND, cost: 42, hp: 105, armor: 3,
       speed: 84, radius: 10, shape: 'quadruped', turnRate: 5.5,
@@ -108,6 +139,14 @@
       weapons: [bite({ name: 'Snap', dmg: 16, pen: 12, range: 30, cd: 1.3 })]
     }),
 
+    boa: unit({
+      name: 'Boa Constrictor', faction: 0, domain: LAND, cost: 100, hp: 360, armor: 10,
+      speed: 40, radius: 13, shape: 'serpent', turnRate: 3,
+      role: 'Constrictor',
+      desc: 'Three metres of muscle that hits harder than any dog in the house. It has to reach something first, and it is in no position to chase.',
+      weapons: [bite({ name: 'Constrict', dmg: 76, pen: 32, range: 32, cd: 1.25 })]
+    }),
+
     guarddog: unit({
       name: 'Guard Dog', faction: 0, domain: LAND, cost: 120, hp: 300, armor: 14,
       speed: 92, radius: 13, shape: 'quadruped', turnRate: 4.6,
@@ -125,6 +164,14 @@
     }),
 
     /* ==================== KILLER ANIMALS (faction 1) ==================== */
+
+    rattlesnake: unit({
+      name: 'Rattlesnake', faction: 1, domain: LAND, cost: 55, hp: 150, armor: 4,
+      speed: 44, radius: 9, shape: 'viper', turnRate: 4,
+      role: 'Ambusher',
+      desc: 'The cheapest thing in the wild roster and the slowest. Venom does not care how thick the hide is, so it hurts a tortoise about as much as it hurts a hamster.',
+      weapons: [bite({ name: 'Venom Bite', dmg: 34, pen: 85, range: 30, cd: 0.75 })]
+    }),
 
     vulture: unit({
       name: 'Vulture', faction: 1, domain: AIR, cost: 60, hp: 90, armor: 3,
@@ -158,6 +205,14 @@
       weapons: [bite({ name: 'Pounce', dmg: 44, pen: 34, range: 36, cd: 0.6, targets: ALL })]
     }),
 
+    cobra: unit({
+      name: 'King Cobra', faction: 1, domain: LAND, cost: 105, hp: 210, armor: 5,
+      speed: 58, radius: 11, shape: 'viper', turnRate: 4.6,
+      role: 'Venom',
+      desc: 'Rears a third of its length off the ground to strike, which puts a low bird inside its reach as well. Slow, so it fights whatever comes to it rather than picking.',
+      weapons: [bite({ name: 'Hooded Strike', dmg: 44, pen: 120, range: 32, cd: 0.62, targets: ALL })]
+    }),
+
     wolf: unit({
       name: 'Wolf', faction: 1, domain: LAND, cost: 130, hp: 290, armor: 14,
       speed: 104, radius: 12, shape: 'quadruped', turnRate: 5,
@@ -172,6 +227,14 @@
       role: 'Air superiority',
       desc: 'Owns the sky outright and can carry off anything small enough. Only a cat or a lynx makes it think twice.',
       weapons: [bite({ name: 'Talons', dmg: 62, pen: 50, range: 36, cd: 0.7, targets: ALL })]
+    }),
+
+    mamba: unit({
+      name: 'Black Mamba', faction: 1, domain: LAND, cost: 120, hp: 185, armor: 4,
+      speed: 132, radius: 10, shape: 'viper', turnRate: 6,
+      role: 'Armour breaker',
+      desc: 'The fastest snake alive carrying the most penetrating bite on the field. It barely notices a shell or a thick coat — and a hamster is no easier to kill for it than a tortoise is.',
+      weapons: [bite({ name: 'Neurotoxin', dmg: 46, pen: 130, range: 30, cd: 0.6 })]
     }),
 
     cheetah: unit({
