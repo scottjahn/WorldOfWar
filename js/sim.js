@@ -79,7 +79,7 @@
     let best = 0, minR = 0;
     for (let i = 0; i < this.weapons.length; i++) {
       const d = this.weapons[i].def;
-      if (this.target && !(d.targets & this.target.domain)) continue;
+      if (this.target && !mountCanHit(d, this.target)) continue;
       if (d.range > best) { best = d.range; minR = d.minRange; }
     }
     if (best === 0) best = this.type.maxRange;
@@ -168,6 +168,8 @@
     /* What happens to a beaten unit — 'destroy' or 'flee'. */
     const ed = W.Editions && W.Editions.current();
     this.defeat = (ed && ed.defeat) || 'destroy';
+    /* Whether the battlefield holds a crater. Space does not. */
+    this.scars = !ed || ed.scars !== false;
     this.words = (ed && ed.words) || {};
 
     const self = this;
@@ -291,6 +293,21 @@
     return d2 < r * r;
   };
 
+  /* Unit tags drive weapon target preference in editions that have only one
+   * domain to sort by (see js/units.js). */
+  function hasTag(u, tag) {
+    const t = u.type.tags;
+    return !!t && t.indexOf(tag) >= 0;
+  }
+
+  /* Can this individual mount engage this unit at all? The domain mask and the
+   * tag restriction are the same question asked two ways, and every place that
+   * used to test `targets` alone has to ask both. */
+  function mountCanHit(d, e) {
+    if (!(d.targets & e.domain)) return false;
+    return !d.onlyTag || hasTag(e, d.onlyTag);
+  }
+
   Battle.prototype.canEngage = function (u, e) {
     if (!e.alive || e.team === u.team) return false;
     if (!(u.type.targetMask & e.domain)) return false;
@@ -311,20 +328,35 @@
     const searchR = Math.max(420, u.type.maxRange * 1.7);
     const near = this.hash.query(u.x, u.y, searchR, this.scratch);
 
-    let best = null, bestScore = Infinity;
+    /* Tag interest is ranked ahead of distance, not folded into it. A torpedo
+     * bomber whose payload will not arm against a starfighter has to fly past
+     * the screen and go for the warship, however much closer the screen is —
+     * weighting the score instead just meant it chased the nearest TIE around
+     * the map with a full rack. A unit whose mounts express no tag interest, or
+     * one where every enemy satisfies some mount, sees no tiers and falls
+     * through to plain nearest-first, which is every other edition. */
+    let best = null, bestScore = Infinity, bestPref = -1;
     for (let i = 0; i < near.length; i++) {
       const e = near[i];
       if (!this.canEngage(u, e)) continue;
       let score = U.dist(u.x, u.y, e.x, e.y);
-      /* Dedicated AA prioritises aircraft even when something closer is on the ground. */
+      let pref = 0;
       for (let k = 0; k < u.weapons.length; k++) {
-        if (u.weapons[k].def.prefers && (u.weapons[k].def.prefers & e.domain)) { score *= 0.5; break; }
+        const wd = u.weapons[k].def;
+        /* Dedicated AA prioritises aircraft even when something closer is on
+         * the ground. */
+        if (wd.prefers && (wd.prefers & e.domain)) { score *= 0.5; break; }
+        const tag = wd.prefersTag || wd.onlyTag;
+        if (tag && hasTag(e, tag)) { pref = 1; break; }
       }
-      if (score < bestScore) { bestScore = score; best = e; }
+      if (pref > bestPref || (pref === bestPref && score < bestScore)) {
+        bestPref = pref; bestScore = score; best = e;
+      }
     }
 
     /* Nothing nearby: pick the closest enemy anywhere so the army keeps advancing. */
     if (!best) {
+      bestScore = Infinity;
       for (let i = 0; i < this.units.length; i++) {
         const e = this.units[i];
         if (!this.canEngage(u, e)) continue;
@@ -347,27 +379,41 @@
   };
 
   /* Gives each weapon its own target when the unit's primary is something that
-   * weapon cannot engage. Sharing one target across every mount meant a warship
-   * locked onto the nearest aircraft and left its main battery — which cannot
-   * shoot at aircraft — silent for the whole battle. */
+   * weapon cannot engage — or simply should not waste its rounds on. Sharing one
+   * target across every mount meant a warship locked onto the nearest aircraft
+   * and left its main battery — which cannot shoot at aircraft — silent for the
+   * whole battle. The same split is what lets a capital ship put its point
+   * defence on the fighters clawing at it while the heavy guns stay on the enemy
+   * line of battle. */
   Battle.prototype.assignWeaponTargets = function (u) {
     for (let i = 0; i < u.weapons.length; i++) {
       const w = u.weapons[i];
       const d = w.def;
       if (d.kind === 'repair') { w.target = u.target; continue; }
 
-      if (u.target && (d.targets & u.target.domain)) { w.target = u.target; continue; }
+      const wants = d.prefersTag;
+      if (u.target && mountCanHit(d, u.target) &&
+        (!wants || hasTag(u.target, wants))) { w.target = u.target; continue; }
 
       const near = this.hash.query(u.x, u.y, d.range * 1.3, this.scratch);
-      let best = null, bestD = Infinity;
+      /* Ranked on preference first, distance second. With no preference set this
+       * is exactly "nearest legal target", which is what every other edition
+       * relies on — including the replay links already out there. */
+      let best = null, bestD = Infinity, bestPref = -1;
       for (let k = 0; k < near.length; k++) {
         const e = near[k];
         if (!e.alive || e.team === u.team) continue;
-        if (!(d.targets & e.domain)) continue;
+        if (!mountCanHit(d, e)) continue;
         if (!this.canSee(u, e)) continue;
+        const pref = (!wants || hasTag(e, wants)) ? 1 : 0;
         const dd = U.dist2(u.x, u.y, e.x, e.y);
-        if (dd < bestD) { bestD = dd; best = e; }
+        if (pref > bestPref || (pref === bestPref && dd < bestD)) {
+          bestPref = pref; bestD = dd; best = e;
+        }
       }
+      /* Preferred prey out of reach: fall back to the primary rather than sit
+       * silent — a point-defence battery with no fighters left still shoots. */
+      if (!best && wants && u.target && mountCanHit(d, u.target)) best = u.target;
       w.target = best;
     }
   };
@@ -557,7 +603,7 @@
       let attackRange = 0;
       for (let i = 0; i < u.type.weapons.length; i++) {
         const w = u.type.weapons[i];
-        if (!(w.targets & tgt.domain)) continue;
+        if (!mountCanHit(w, tgt)) continue;
         if (w.range > attackRange) attackRange = w.range;
       }
       if (!attackRange) attackRange = u.type.maxRange;
@@ -658,7 +704,7 @@
        * measured between bodies, so a big animal does not need to overlap a
        * small one to bite it. */
       if (d.kind === 'melee') {
-        if (!(d.targets & tgt.domain)) continue;
+        if (!mountCanHit(d, tgt)) continue;
         const reach = U.dist(u.x, u.y, tgt.x, tgt.y) - u.radius - tgt.radius;
         if (reach > d.range) continue;
         const want = M.atan2(tgt.y - u.y, tgt.x - u.x);
@@ -684,7 +730,7 @@
         continue;
       }
 
-      if (!(d.targets & tgt.domain)) continue;
+      if (!mountCanHit(d, tgt)) continue;
       const dist = U.dist(u.x, u.y, tgt.x, tgt.y);
       if (dist > d.range || dist < d.minRange) continue;
 
@@ -805,7 +851,10 @@
     for (let i = 0; i < near.length; i++) {
       const e = near[i];
       if (!e.alive || e.team === p.team) continue;
-      if (!(d.targets & e.domain)) continue;
+      /* A round flies straight through anything it is not fused for, so a
+       * fighter screen cannot body-block a torpedo meant for the capital ship
+       * behind it. */
+      if (!mountCanHit(d, e)) continue;
       /* Swept test so fast projectiles cannot tunnel through a small unit. */
       if (!segmentHitsCircle(p.px, p.py, p.x, p.y, e.x, e.y, e.radius + 2)) continue;
       this.detonate(p, p.x, p.y, e);
@@ -834,7 +883,7 @@
     this.effects.push({ kind: 'boom', x: x, y: y, t: 0, life: 0.25 + big * 0.004, size: big });
     /* Craters are permanent, so only scar ground that can actually hold one.
      * Shells landing in the sea used to stack into a black hole on the water. */
-    if (d.splash > 30 && this.decals.length < 260 && this.terrain.passable(LAND, x, y)) {
+    if (d.splash > 30 && this.scars && this.decals.length < 260 && this.terrain.passable(LAND, x, y)) {
       this.decals.push({ x: x, y: y, r: d.splash * 0.55, kind: 'crater' });
     }
   };

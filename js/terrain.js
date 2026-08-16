@@ -22,11 +22,15 @@
    * smaller board. MAPS is mutated in place so modules that captured it stay valid. */
   let COLS = 120;
   let ROWS = 70;
+  let LOOK = 'earth';
   const MAPS = [];
 
   Terrain.setEdition = function (ed) {
     COLS = ed.cols || 120;
     ROWS = ed.rows || 70;
+    /* Carried on each terrain so the renderer can pick a palette without having
+     * to ask which edition is loaded. */
+    LOOK = ed.look || 'earth';
     MAPS.length = 0;
     (ed.maps || []).forEach(function (m) { MAPS.push(m); });
   };
@@ -40,6 +44,10 @@
     this.width = COLS * TILE;
     this.height = ROWS * TILE;
     this.tiles = new Uint8Array(COLS * ROWS);
+    this.look = LOOK;
+    /* Named features a map carved deliberately — a planet is one object the
+     * renderer draws as a sphere, not a thousand tiles it draws as rubble. */
+    this.props = [];
 
     const def = MAPS.filter(function (m) { return m.id === mapId; })[0] || MAPS[0];
     this.def = def;
@@ -102,6 +110,11 @@
       }
     }
 
+    /* Deliberate, hand-placed features go on after the noise pass — which would
+     * otherwise paint straight over them — and before the deployment-zone
+     * cleanup below, so a map cannot accidentally wall its own armies in. */
+    if (this.def && this.def.carve) this.def.carve(this, noise, rand);
+
     /* Deployment zones must stay clean enough to actually place an army in. */
     const zoneW = Math.floor(cols * 0.30);
     for (let y = 0; y < rows; y++) {
@@ -110,6 +123,20 @@
         const i = y * cols + x;
         if (t[i] === ROCK) t[i] = GRASS;
         if (t[i] === FOREST && rand.chance(0.6)) t[i] = GRASS;
+      }
+    }
+  };
+
+  /* Stamps a filled circle of one surface into the grid. Tile coordinates, and
+   * fractional centres are fine — maps place features in fractions of the field.
+   * The one drawing primitive a map's `carve` needs often enough to share. */
+  Terrain.prototype.disc = function (cx, cy, r, surface) {
+    const x0 = Math.max(0, Math.floor(cx - r)), x1 = Math.min(this.cols - 1, Math.ceil(cx + r));
+    const y0 = Math.max(0, Math.floor(cy - r)), y1 = Math.min(this.rows - 1, Math.ceil(cy + r));
+    for (let y = y0; y <= y1; y++) {
+      for (let x = x0; x <= x1; x++) {
+        const dx = x - cx, dy = y - cy;
+        if (dx * dx + dy * dy <= r * r) this.tiles[y * this.cols + x] = surface;
       }
     }
   };

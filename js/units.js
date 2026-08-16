@@ -17,6 +17,19 @@
  * Weapons declare which domains they can engage. A weapon that omits AIR simply
  * cannot shoot back at aircraft, which is why unescorted ground forces lose to
  * air power.
+ *
+ * Target preference
+ * -----------------
+ * `prefers` biases a mount toward a domain; `prefersTag` biases it toward units
+ * carrying a given entry in their `tags`. The tag route exists for editions with
+ * a single domain — Space has no land/air/sea split, so a Star Destroyer's point
+ * defence tells starfighters from capital ships by tag rather than by domain.
+ * Both are priorities rather than restrictions.
+ *
+ * `onlyTag` *is* a restriction, and it is the tag-space equivalent of `targets`:
+ * a mount that declares one will not engage anything without that tag. It is
+ * what stops a proton torpedo — fused for a capital hull, and reloading for
+ * eight seconds — from being spent on a passing starfighter.
  */
 (function (W) {
   'use strict';
@@ -43,6 +56,8 @@
       salvo: 1,           // shots per burst
       salvoDelay: 0.08,   // seconds between shots inside a burst
       targets: GROUND,
+      prefersTag: null,   // unit tag this mount hunts first, e.g. 'fighter'
+      onlyTag: null,      // unit tag this mount can engage *at all*
       lead: true,         // aim at where the target will be
       turnRate: 3.2,      // homing weapons only
       color: '#ffd98a',

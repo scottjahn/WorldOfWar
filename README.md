@@ -14,7 +14,7 @@ unit.
 | --- | --- | --- |
 | **Earth** | Modern combined arms | Infantry, armour, artillery, aircraft and a navy across land, air and sea. |
 | **Animals** | Household Pets vs Killer Animals | All melee, no navy, a smaller field — and nobody dies. |
-| **Space** | *Coming soon* | |
+| **Space** | Rebel Alliance vs Imperial Navy | Starfighters and capital ships. One domain — everything flies. |
 | **Prehistoric** | *Coming soon* | |
 
 **Animals** is asymmetric: each side has its own roster. Household Pets are cheap, numerous
@@ -26,8 +26,27 @@ lynxes are the only cheap answers to anything airborne.
 Despite the name nothing is killed: an animal whose stamina runs out turns tail and bolts off
 the field.
 
-The major version tracks editions — 2.x ships Earth and Animals, and each new edition bumps
-it again.
+**Space** is asymmetric too, and it collapses the domain split entirely: there is no land, air
+or sea out there, so the three roster tabs become one **Fleet** shelf and every hull shares a
+single domain. What replaces the split is unit **tags**. Small craft carry `fighter`, warships
+carry `capital`, and each weapon says which it was built for — so a Star Destroyer's point
+defence clears the fighter screen while its turbolasers stay on the enemy line of battle.
+
+That is also what makes the two arms need each other. Laser cannons barely scratch capital
+plating, so fighters carry proton torpedoes and ion cannons for the heavy work — and those
+will not arm against a starfighter at all, and reload for seven or eight seconds, which is
+exactly the window point defence exists to use. Get the bombers through and a Star Destroyer
+dies fast; lose them on the way in and the turbolasers decide it.
+
+Imperial hulls are individually tougher and their capitals hit hardest, but TIE fighters are
+unshielded and die in droves. Rebel starfighters are shielded and punch far above their price
+against a capital ship; their warships are thinner and rely on speed.
+
+Maps carry planets, asteroid belts, nebulae and drifting hulks. Nebula gas drags a hull down
+to 60% speed, dust and debris to 90%, and nothing at all flies through a planet.
+
+The major version tracks editions — 3.x ships Earth, Animals and Space, and each new edition
+bumps it again.
 
 No build step, no dependencies, no framework — plain HTML, CSS and Canvas 2D. It works on
 desktop and mobile browsers, and installs as a PWA or packages into an APK.
@@ -66,8 +85,10 @@ Choose **Computer** for a generated opponent, or **Two players** to hand the dev
 let a second commander deploy. After a battle you can replay it, edit both armies and fight
 again, or start fresh.
 
-In two-player mode the armies stay secret. Blue deploys, the screen blanks for the hand-over,
-and Red then deploys without ever seeing Blue's units or even Blue's total spend — the tally
+The side holding the west edge is red and the side holding the east is blue, in every edition.
+
+In two-player mode the armies stay secret. Red deploys, the screen blanks for the hand-over,
+and Blue then deploys without ever seeing Red's units or even Red's total spend — the tally
 reads `???` until the battle starts. Deployments are only revealed when the shooting does.
 
 ## How a battle is decided
@@ -159,6 +180,7 @@ js/util.js            math, seeded RNG, value noise, binary heap, spatial hash
 js/units.js           unit definition machinery and the active catalogue
 js/roster-earth.js    Earth's army list
 js/roster-animals.js  the Animals army list, split into two factions
+js/roster-space.js    the Space army list, split into two navies
 js/editions.js        what each edition is: roster, maps, budgets, side names, defeat style
 js/terrain.js         map generation, passability, connectivity, A* pathfinding
 js/sim.js             the battle: targeting, movement, weapons, projectiles, damage
@@ -176,6 +198,8 @@ sw.js                 offline support (network-first, so edits always take effec
    else, plus `faction: 0 | 1` on each unit if the two sides field different things.
 2. Add an entry to `EDITIONS` in `js/editions.js`: roster, maps (each with its own `water`
    shaper), field size in tiles, budgets, side names, and `defeat: 'destroy' | 'flee'`.
+   `look: 'space'` swaps the renderer to a starfield palette; `singleDomain` and
+   `bucketNames` collapse and rename the roster tabs.
 3. Add a wire list to `WIRE` in `js/share.js` and append the id to `EDITION_WIRE`, so replay
    links can name its units.
 4. Add the script tags to `index.html` and the paths to `ASSETS` in `sw.js`.
@@ -194,6 +218,13 @@ and filtered to its faction.
 Weapons with `kind: 'melee'` resolve on contact with no projectile, and their `range` is
 reach measured between the two bodies rather than between centres.
 
+Weapons pick targets three ways. `targets` is the domain mask — a mount that omits `AIR`
+cannot shoot back at aircraft. `prefersTag` and `onlyTag` do the same job over unit `tags`,
+for editions with no domain split to sort by: `prefersTag` is a priority (point defence hunts
+small craft first but will fire on anything), `onlyTag` is a restriction (a proton torpedo
+will not arm against a starfighter at all). A unit whose heavy mounts are tag-restricted also
+steers by them, so a bomber flies past the escorts to reach the warship it can actually hurt.
+
 Two flags on a unit are worth knowing. `hidden: true` keeps it out of the roster and out of
 the AI's shopping list, for things that are carried rather than bought. `squadron: { type,
 count, respawn, reserve }` makes it launch aircraft at the start of the battle and top the
@@ -201,8 +232,16 @@ group back up from a finite pool. Carried units should cost 0 so the carrier's p
 whole package — and note that a purchasable unit costing 0 would spin the AI's buy loop
 without ever consuming budget, which is why hidden and zero-cost types are filtered out there.
 
-Maps are the shaper functions in `Terrain.prototype.generate`. Add an entry to `Terrain.MAPS`
-and a branch there.
+Maps belong to their edition, in the `EDITIONS` entry in `js/editions.js`. Each one supplies
+a `water` shaper (return `false` throughout for a map with no water at all) plus optional
+`forestBias` and `rockBias` to push the ambient scatter toward woodland or bare rock.
+
+Anything with a deliberate shape — a belt, a planet — needs a `carve(terrain, noise, rand)`
+hook instead, which gets the tile grid and `terrain.disc()` to stamp into it. It runs after
+the noise pass, which would otherwise paint straight over it, and before the deployment zones
+are scrubbed clear, so a map cannot accidentally wall its own armies in. Push an entry onto
+`terrain.props` for anything the renderer should draw as one object rather than as tiles;
+that is how a planet comes out as a sphere instead of a few hundred boulders.
 
 ### Deterministic maths
 

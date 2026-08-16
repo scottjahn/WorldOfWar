@@ -178,7 +178,8 @@
 
     if (ed.factions) {
       html += '<p class="faction-note">You command <strong>' + W.UI.esc(ed.teams[0]) +
-        '</strong>; the ' + W.UI.esc(ed.teams[1]) + ' oppose you. Each side fields its own animals.</p>';
+        '</strong>; the ' + W.UI.esc(ed.teams[1]) + ' oppose you. Each side fields its own ' +
+        W.UI.esc(ed.factionWord || 'units') + '.</p>';
     }
 
     html += '<div class="overlay-actions">';
@@ -263,11 +264,18 @@
     this.warnAboutMap();
   };
 
-  /* Tell the player up front if their zone cannot host part of the roster. */
+  /* Tell the player up front if their zone cannot host part of the roster.
+   * Only worth saying about a domain the edition actually fields — Animals and
+   * Space have no navy at all, so "no water here" would be noise on every map. */
   Game.prototype.warnAboutMap = function () {
     const t = this.terrain;
-    if (t.zoneSeaFrac < 0.05) this.ui.toast('No water in your zone — naval units cannot deploy here.');
-    else if (t.zoneLandFrac < 0.10) this.ui.toast('Almost no dry land — build a navy or an air force.');
+    if (Units.ORDER.sea.length && t.zoneSeaFrac < 0.05) {
+      this.ui.toast('No water in your zone — naval units cannot deploy here.');
+    } else if (Units.ORDER.land.length && t.zoneLandFrac < 0.10) {
+      this.ui.toast(Units.ORDER.sea.length
+        ? 'Almost no dry land — build a navy or an air force.'
+        : 'Almost nowhere clear to deploy in your zone.');
+    }
   };
 
   Game.prototype.armyCost = function (team) {
@@ -299,8 +307,10 @@
     if (!this.terrain.inDeployZone(team, x)) return 'Outside your deployment zone';
     if (this.armyCost(team) + type.cost > this.budget) return 'Not enough budget';
     if (!this.terrain.passable(type.domain, x, y)) {
-      return type.domain === Units.SEA ? 'Ships need open water'
-        : type.domain === Units.LAND ? 'Cannot deploy on water or rock' : 'Off the battlefield';
+      if (type.domain === Units.SEA) return 'Ships need open water';
+      if (type.domain !== Units.LAND) return 'Off the battlefield';
+      /* Editions phrase "there is something solid here" differently. */
+      return W.Editions.word('blocked', 'Cannot deploy on water or rock');
     }
     const army = this.armies[team];
     for (let i = 0; i < army.length; i++) {
@@ -436,7 +446,7 @@
       this.ui.showOverlay(
         '<h2>Pass the device</h2><p class="lede">' + W.UI.esc(first) + ' are locked in and hidden. ' +
         'Hand over to ' + W.UI.esc(second) + ' — you will deploy without seeing where they are.</p>' +
-        '<div class="overlay-actions"><button class="btn primary" id="ovNext">Red is ready</button></div>',
+        '<div class="overlay-actions"><button class="btn primary" id="ovNext"></button></div>',
         function (panel) {
           panel.querySelector('#ovNext').addEventListener('click', function () {
             self.ui.hideOverlay();
@@ -512,7 +522,7 @@
     const winner = b.winner;
     const ed = this.edition;
     const title = winner === -1 ? 'Stalemate' : W.Editions.teamName(winner) + ' Victory';
-    const cls = winner === 0 ? 'win-blue' : winner === 1 ? 'win-red' : 'win-draw';
+    const cls = winner === 0 ? 'win-a' : winner === 1 ? 'win-b' : 'win-draw';
     const words = ed.words || {};
 
     let html = '<h2 class="' + cls + '">' + title + '</h2>';
@@ -523,7 +533,7 @@
     const wLost = words.lost || 'Value lost';
     html += '<div class="result-grid">';
     for (let team = 0; team < 2; team++) {
-      html += '<div class="result-col"><div class="result-team ' + (team === 0 ? 'blue' : 'red') + '">' +
+      html += '<div class="result-col"><div class="result-team ' + (team === 0 ? 'team-a' : 'team-b') + '">' +
         W.UI.esc(W.Editions.teamName(team)) + '</div>' +
         resultRow(wSurv, b.aliveUnits(team) + ' / ' + countTeam(b, team)) +
         resultRow(wLeft, U.formatCost(Math.round(b.remainingValue(team)))) +

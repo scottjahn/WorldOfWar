@@ -8,9 +8,13 @@
   const Units = W.Units;
   const Terrain = W.Terrain;
 
+  /* Team 0 holds the west edge and is red; team 1 holds the east and is blue.
+   * Every edition follows that, so "red on the left" is the one thing a player
+   * never has to relearn between worlds. The stylesheet mirrors these in
+   * --team-a and --team-b — change both together. */
   const TEAM = [
-    { main: '#4aa3ff', dark: '#1d4f8a', light: '#a8d6ff', glow: 'rgba(74,163,255,0.35)' },
-    { main: '#ff5f4a', dark: '#8a2a1d', light: '#ffb0a4', glow: 'rgba(255,95,74,0.35)' }
+    { main: '#ff5f4a', dark: '#8a2a1d', light: '#ffb0a4', glow: 'rgba(255,95,74,0.35)' },
+    { main: '#4aa3ff', dark: '#1d4f8a', light: '#a8d6ff', glow: 'rgba(74,163,255,0.35)' }
   ];
 
   function Renderer(canvas) {
@@ -110,6 +114,14 @@
     const cv = document.createElement('canvas');
     cv.width = t.width; cv.height = t.height;
     const g = cv.getContext('2d');
+
+    if (t.look === 'space') this.bakeSpace(g, t);
+    else this.bakeGround(g, t);
+
+    this.terrainCanvas = cv;
+  };
+
+  Renderer.prototype.bakeGround = function (g, t) {
     const TS = t.tileSize;
     const noise = U.makeNoise(t.seed ^ 0x77);
 
@@ -241,9 +253,229 @@
     vg.addColorStop(1, 'rgba(0,0,0,0.4)');
     g.fillStyle = vg;
     g.fillRect(0, 0, t.width, t.height);
-
-    this.terrainCanvas = cv;
   };
+
+  /* ---------------------------- space bake ------------------------- */
+
+  /* The vacuum version of the same job. The tile grid means the same things it
+   * always does — it is only painted differently: GRASS is empty space, SAND a
+   * dust and debris wash, FOREST nebula gas, ROCK an asteroid or a planet.
+   *
+   * Everything here is baked once, so it can afford to be expensive: a couple of
+   * thousand stars and a blurred gas layer cost nothing per frame. */
+  Renderer.prototype.bakeSpace = function (g, t) {
+    const TS = t.tileSize;
+    const style = (t.def && t.def.space) || {};
+    const tint = style.tint || '#1c2a58';
+    const clouds = style.clouds == null ? 0.3 : style.clouds;
+    const rand = U.rng(t.seed ^ 0x5eed);
+
+    g.fillStyle = '#05070e';
+    g.fillRect(0, 0, t.width, t.height);
+
+    /* Distant gas, as a handful of enormous soft gradients. Drawn before the
+     * stars so the bright ones still read through it. */
+    const puffs = Math.round(4 + clouds * 9);
+    for (let i = 0; i < puffs; i++) {
+      const cx = rand() * t.width, cy = rand() * t.height;
+      const r = (0.16 + rand() * 0.36) * t.width * 0.5;
+      const grd = g.createRadialGradient(cx, cy, 0, cx, cy, r);
+      grd.addColorStop(0, rgba(tint, 0.20 * clouds));
+      grd.addColorStop(0.5, rgba(tint, 0.09 * clouds));
+      grd.addColorStop(1, rgba(tint, 0));
+      g.fillStyle = grd;
+      g.fillRect(cx - r, cy - r, r * 2, r * 2);
+    }
+
+    /* Starfield. Most are faint dust; a few are bright enough to earn a glare
+     * cross, which is what stops the field reading as flat noise. */
+    const density = style.stars == null ? 1 : style.stars;
+    const stars = Math.round((t.width * t.height) / 2400 * density);
+    for (let i = 0; i < stars; i++) {
+      const x = rand() * t.width, y = rand() * t.height;
+      const m = rand();
+      const bright = m > 0.986;
+      const r = bright ? 1.8 + rand() * 1.4 : m > 0.86 ? 1.0 + rand() * 0.6 : 0.45 + rand() * 0.5;
+      const a = bright ? 0.95 : m > 0.86 ? 0.55 + rand() * 0.35 : 0.14 + rand() * 0.3;
+      const h = rand();
+      const col = h > 0.9 ? '255,212,166' : h > 0.78 ? '186,212,255' : '255,255,255';
+      g.fillStyle = 'rgba(' + col + ',' + a.toFixed(3) + ')';
+      g.beginPath(); g.arc(x, y, r, 0, U.TAU); g.fill();
+      if (bright) {
+        const len = r * 5;
+        g.strokeStyle = 'rgba(' + col + ',0.28)';
+        g.lineWidth = 1;
+        g.beginPath();
+        g.moveTo(x - len, y); g.lineTo(x + len, y);
+        g.moveTo(x, y - len); g.lineTo(x, y + len);
+        g.stroke();
+      }
+    }
+
+    /* Nebula tiles. Same trick as the Earth coastline: blobs go onto their own
+     * layer and the whole layer is blurred once, so the gas has no tile edges. */
+    const gasCv = document.createElement('canvas');
+    gasCv.width = t.width; gasCv.height = t.height;
+    const gc = gasCv.getContext('2d');
+    let anyGas = false;
+    gc.fillStyle = rgba(tint, 0.85);
+    for (let y = 0; y < t.rows; y++) {
+      for (let x = 0; x < t.cols; x++) {
+        if (t.tiles[y * t.cols + x] !== Terrain.FOREST) continue;
+        anyGas = true;
+        gc.beginPath();
+        gc.arc((x + 0.5) * TS, (y + 0.5) * TS, TS * 1.0, 0, U.TAU);
+        gc.fill();
+      }
+    }
+    if (anyGas) {
+      g.save();
+      g.filter = 'blur(16px)';
+      g.globalAlpha = 0.8;
+      g.drawImage(gasCv, 0, 0);
+      g.filter = 'none';
+      /* A second, tighter pass brightens the cores so the gas has depth. */
+      g.globalAlpha = 0.35;
+      g.filter = 'blur(34px)';
+      g.drawImage(gasCv, 0, 0);
+      g.restore();
+    }
+
+    /* Dust and debris: fine grit, plus the odd pebble to catch the eye. */
+    for (let y = 0; y < t.rows; y++) {
+      for (let x = 0; x < t.cols; x++) {
+        if (t.tiles[y * t.cols + x] !== Terrain.SAND) continue;
+        const n = 2 + Math.floor(rand() * 3);
+        for (let i = 0; i < n; i++) {
+          const px = (x + rand()) * TS, py = (y + rand()) * TS;
+          const r = 0.6 + rand() * 1.9;
+          g.fillStyle = rand() < 0.35 ? 'rgba(20,18,16,0.55)' : 'rgba(150,140,126,0.30)';
+          g.beginPath(); g.arc(px, py, r, 0, U.TAU); g.fill();
+        }
+      }
+    }
+
+    /* Asteroids. Tiles swallowed by a planet are skipped — that mass gets drawn
+     * once, as a sphere, rather than as a few hundred boulders. */
+    const props = t.props || [];
+    for (let y = 0; y < t.rows; y++) {
+      for (let x = 0; x < t.cols; x++) {
+        if (t.tiles[y * t.cols + x] !== Terrain.ROCK) continue;
+        const wx = (x + 0.5) * TS, wy = (y + 0.5) * TS;
+        let hidden = false;
+        for (let p = 0; p < props.length; p++) {
+          const pr = props[p];
+          if (pr.kind !== 'planet') continue;
+          if (U.dist2(wx, wy, pr.x, pr.y) < (pr.r + TS) * (pr.r + TS)) { hidden = true; break; }
+        }
+        if (hidden) continue;
+        drawRock(g, wx + (rand() - 0.5) * TS * 0.5, wy + (rand() - 0.5) * TS * 0.5,
+          TS * (0.5 + rand() * 0.45), rand);
+        if (rand() < 0.5) {
+          drawRock(g, (x + rand()) * TS, (y + rand()) * TS, TS * (0.15 + rand() * 0.22), rand);
+        }
+      }
+    }
+
+    props.forEach(function (p) { if (p.kind === 'planet') drawPlanet(g, p, rand); });
+
+    const vg = g.createRadialGradient(t.width / 2, t.height / 2, Math.min(t.width, t.height) * 0.42,
+      t.width / 2, t.height / 2, Math.max(t.width, t.height) * 0.75);
+    vg.addColorStop(0, 'rgba(0,0,0,0)');
+    vg.addColorStop(1, 'rgba(0,0,0,0.45)');
+    g.fillStyle = vg;
+    g.fillRect(0, 0, t.width, t.height);
+  };
+
+  /* A single lump of rock, lit from the upper left like everything else. */
+  function drawRock(g, x, y, r, rand) {
+    const points = 7;
+    g.save();
+    g.translate(x, y);
+    g.rotate(rand() * U.TAU);
+    g.beginPath();
+    for (let i = 0; i < points; i++) {
+      const a = (i / points) * U.TAU;
+      const rr = r * (0.68 + rand() * 0.42);
+      const px = Math.cos(a) * rr, py = Math.sin(a) * rr;
+      if (i === 0) g.moveTo(px, py); else g.lineTo(px, py);
+    }
+    g.closePath();
+    g.fillStyle = 'rgba(0,0,0,0.5)';
+    g.save(); g.translate(r * 0.18, r * 0.22); g.fill(); g.restore();
+    const grd = g.createLinearGradient(-r, -r, r, r);
+    grd.addColorStop(0, '#8d8a86');
+    grd.addColorStop(0.55, '#5e5b58');
+    grd.addColorStop(1, '#302e2d');
+    g.fillStyle = grd;
+    g.fill();
+    g.restore();
+  }
+
+  /* A planet or moon: lit limb, dark terminator, and a thin atmosphere rim. */
+  function drawPlanet(g, p, rand) {
+    const r = p.r;
+    if (p.atmos) {
+      const halo = g.createRadialGradient(p.x, p.y, r * 0.93, p.x, p.y, r * 1.16);
+      halo.addColorStop(0, p.atmos);
+      halo.addColorStop(0.35, p.atmos.replace(/[\d.]+\)$/, '0.18)'));
+      halo.addColorStop(1, p.atmos.replace(/[\d.]+\)$/, '0)'));
+      g.fillStyle = halo;
+      g.beginPath(); g.arc(p.x, p.y, r * 1.16, 0, U.TAU); g.fill();
+    }
+
+    g.save();
+    g.beginPath(); g.arc(p.x, p.y, r, 0, U.TAU);
+    g.clip();
+
+    const body = g.createRadialGradient(p.x - r * 0.4, p.y - r * 0.45, r * 0.05, p.x, p.y, r * 1.05);
+    body.addColorStop(0, shade(p.color, 0.16));
+    body.addColorStop(0.5, p.color);
+    body.addColorStop(1, p.shade);
+    g.fillStyle = body;
+    g.fillRect(p.x - r, p.y - r, r * 2, r * 2);
+
+    /* Cloud bands for a gas-and-water world, craters for a dead one. */
+    for (let i = 0; i < (p.bands || 0); i++) {
+      const cy = p.y - r + (i + 0.6) * (r * 2 / ((p.bands || 1) + 0.5));
+      g.fillStyle = 'rgba(255,255,255,' + (0.05 + rand() * 0.07).toFixed(3) + ')';
+      g.beginPath();
+      g.ellipse(p.x + (rand() - 0.5) * r * 0.5, cy, r * (0.6 + rand() * 0.45), r * (0.07 + rand() * 0.07), 0, 0, U.TAU);
+      g.fill();
+    }
+    for (let i = 0; i < (p.craters || 0); i++) {
+      const a = rand() * U.TAU, d = Math.sqrt(rand()) * r * 0.86;
+      const cr = r * (0.06 + rand() * 0.13);
+      g.fillStyle = 'rgba(0,0,0,0.20)';
+      g.beginPath(); g.arc(p.x + Math.cos(a) * d, p.y + Math.sin(a) * d, cr, 0, U.TAU); g.fill();
+      g.fillStyle = 'rgba(255,255,255,0.06)';
+      g.beginPath(); g.arc(p.x + Math.cos(a) * d - cr * 0.2, p.y + Math.sin(a) * d - cr * 0.25, cr * 0.7, 0, U.TAU); g.fill();
+    }
+
+    /* Terminator: the far side falls off into night. */
+    const night = g.createRadialGradient(p.x - r * 0.5, p.y - r * 0.55, r * 0.2, p.x - r * 0.2, p.y - r * 0.25, r * 1.5);
+    night.addColorStop(0, 'rgba(0,0,0,0)');
+    night.addColorStop(0.55, 'rgba(0,0,0,0.28)');
+    night.addColorStop(1, 'rgba(0,0,0,0.88)');
+    g.fillStyle = night;
+    g.fillRect(p.x - r, p.y - r, r * 2, r * 2);
+    g.restore();
+
+    /* A bright sliver on the lit limb sells the curvature. */
+    g.save();
+    g.strokeStyle = 'rgba(255,255,255,0.22)';
+    g.lineWidth = Math.max(1, r * 0.012);
+    g.beginPath();
+    g.arc(p.x, p.y, r * 0.995, Math.PI * 1.05, Math.PI * 1.85);
+    g.stroke();
+    g.restore();
+  }
+
+  /* '#rrggbb' plus an alpha, for the one place that needs a translucent tint. */
+  function rgba(hex, a) {
+    const n = parseInt(hex.slice(1, 7), 16);
+    return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a.toFixed(3) + ')';
+  }
 
   function shade(hex, amount) {
     const n = parseInt(hex.slice(1, 7), 16);
@@ -398,7 +630,8 @@
         g.fillStyle = 'rgba(46,38,33,0.85)';
         roundRect(g, -d.r, -d.r * 0.6, d.r * 2, d.r * 1.2, 2);
         g.fill();
-        g.fillStyle = d.team === 0 ? 'rgba(58,80,104,0.6)' : 'rgba(104,62,54,0.6)';
+        /* A hint of the team colour left in the burnt-out hull. */
+        g.fillStyle = d.team === 0 ? 'rgba(104,62,54,0.6)' : 'rgba(58,80,104,0.6)';
         g.fillRect(-d.r * 0.45, -d.r * 0.3, d.r * 0.9, d.r * 0.6);
       }
       g.restore();
@@ -415,9 +648,41 @@
     };
 
     const units = battle.units;
+    const space = this.terrain.look === 'space';
+
+    /* Engine glow behind anything under power. In vacuum this is the only cue
+     * that a hull is moving at all — there is no wake and no ground going past. */
+    if (space) {
+      ctx.save();
+      ctx.lineCap = 'round';
+      for (let i = 0; i < units.length; i++) {
+        const u = units[i];
+        if (!u.alive) continue;
+        if (u.x < view.x0 || u.x > view.x1 || u.y < view.y0 || u.y > view.y1) continue;
+        const frac = U.clamp(u.speed / Math.max(1, u.type.speed), 0, 1);
+        if (frac < 0.12) continue;
+        const a = u.hdg + Math.PI;
+        const stern = u.radius * 0.7;
+        const len = u.radius * (0.8 + frac * 2.4);
+        const x0 = u.x + Math.cos(a) * stern, y0 = u.y + Math.sin(a) * stern;
+        const x1 = u.x + Math.cos(a) * (stern + len), y1 = u.y + Math.sin(a) * (stern + len);
+        const col = TEAM[u.team];
+        const grad = ctx.createLinearGradient(x0, y0, x1, y1);
+        grad.addColorStop(0, 'rgba(214,238,255,' + (0.65 * frac).toFixed(3) + ')');
+        grad.addColorStop(0.3, rgba(col.light, 0.34 * frac));
+        grad.addColorStop(1, rgba(col.light, 0));
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = u.radius * 0.5;
+        ctx.beginPath();
+        ctx.moveTo(x0, y0);
+        ctx.lineTo(x1, y1);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
 
     /* Ship wakes go under the hulls. */
-    for (let i = 0; i < units.length; i++) {
+    for (let i = 0; !space && i < units.length; i++) {
       const u = units[i];
       if (!u.alive || u.domain !== Units.SEA || u.speed < 8) continue;
       if (u.x < view.x0 || u.x > view.x1 || u.y < view.y0 || u.y > view.y1) continue;
@@ -442,7 +707,7 @@
     }
 
     /* Aircraft shadows sell the altitude difference. */
-    for (let i = 0; i < units.length; i++) {
+    for (let i = 0; !space && i < units.length; i++) {
       const u = units[i];
       if (!u.alive || u.domain !== Units.AIR) continue;
       if (u.x < view.x0 || u.x > view.x1 || u.y < view.y0 || u.y > view.y1) continue;
@@ -640,8 +905,8 @@
     ctx.globalAlpha = alpha == null ? 1 : alpha;
     ctx.translate(x, y);
 
-    /* Ground shadow. */
-    if (type.domain !== Units.AIR) {
+    /* Ground shadow. Nothing to cast one onto in vacuum. */
+    if (type.domain !== Units.AIR && !(this.terrain && this.terrain.look === 'space')) {
       ctx.save();
       ctx.globalAlpha = (alpha == null ? 1 : alpha) * 0.35;
       ctx.fillStyle = '#000';
@@ -997,6 +1262,26 @@
       case 'beast': drawBeast(ctx, r, body, dark, light); break;
       case 'bird': drawBird(ctx, r, body, dark, light, live); break;
       case 'shelled': drawShelled(ctx, r, body, dark, light); break;
+      case 'snub': drawSnub(ctx, r, body, dark, light); break;
+      case 'awing': drawAwing(ctx, r, body, dark, light); break;
+      case 'xwing': drawXwing(ctx, r, body, dark, light); break;
+      case 'ywing': drawYwing(ctx, r, body, dark, light); break;
+      case 'bwing': drawBwing(ctx, r, body, dark, light); break;
+      case 'freighter': drawFreighter(ctx, r, body, dark, light); break;
+      case 'transport': drawTransport(ctx, r, body, dark, light); break;
+      case 'corvette': drawCorvette(ctx, r, body, dark, light); break;
+      case 'frigate': drawFrigate(ctx, r, body, dark, light); break;
+      case 'cruiser': drawStarCruiser(ctx, r, body, dark, light); break;
+      case 'platform': drawPlatform(ctx, r, body, dark, light); break;
+      case 'tie': drawTie(ctx, r, body, dark, light); break;
+      case 'tieint': drawTieInt(ctx, r, body, dark, light); break;
+      case 'tiebomber': drawTieBomber(ctx, r, body, dark, light); break;
+      case 'tiedef': drawTieDef(ctx, r, body, dark, light); break;
+      case 'gunboat': drawGunboat(ctx, r, body, dark, light); break;
+      case 'shuttle': drawShuttle(ctx, r, body, dark, light); break;
+      case 'escort': drawEscort(ctx, r, body, dark, light); break;
+      case 'raider': drawRaider(ctx, r, body, dark, light); break;
+      case 'wedge': drawWedge(ctx, r, body, dark, light); break;
       default: drawTank(ctx, r, body, dark, light); break;
     }
   }
@@ -1131,6 +1416,517 @@
     }
   }
 
+  /* ---------------------- starship shapes ---------------------- */
+  /* Nose to +x, same as everything else, and all sized off the unit radius so a
+   * Star Destroyer and a TIE come out of the same code at very different scales.
+   * Hulls take the team colour rather than a realistic grey: at the zoom this
+   * game is normally played at, whose ship it is has to be readable before what
+   * class it is. Engine bells are the one exception — those stay blue-white. */
+
+  const EXHAUST = 'rgba(200,232,255,0.7)';
+  const NACELLE = '#1e2129';
+
+  function drawSnub(ctx, r, body, dark, light) {
+    ctx.fillStyle = dark;                                    // straight wings
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.1, -r * 0.25); ctx.lineTo(-r * 0.55, -r * 1.05);
+    ctx.lineTo(-r * 0.9, -r * 1.0); ctx.lineTo(-r * 0.5, -r * 0.2);
+    ctx.lineTo(-r * 0.5, r * 0.2); ctx.lineTo(-r * 0.9, r * 1.0);
+    ctx.lineTo(-r * 0.55, r * 1.05); ctx.lineTo(-r * 0.1, r * 0.25);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = body;                                    // fuselage
+    ctx.beginPath();
+    ctx.moveTo(r * 1.25, 0); ctx.lineTo(r * 0.2, -r * 0.3);
+    ctx.lineTo(-r * 1.0, -r * 0.26); ctx.lineTo(-r * 1.0, r * 0.26);
+    ctx.lineTo(r * 0.2, r * 0.3);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = light;
+    ctx.beginPath(); ctx.ellipse(r * 0.12, 0, r * 0.26, r * 0.17, 0, 0, U.TAU); ctx.fill();
+    ctx.fillStyle = NACELLE;
+    ctx.fillRect(-r * 1.12, -r * 0.3, r * 0.2, r * 0.22);
+    ctx.fillRect(-r * 1.12, r * 0.08, r * 0.2, r * 0.22);
+  }
+
+  function drawAwing(ctx, r, body, dark, light) {
+    ctx.fillStyle = dark;                                    // full wedge
+    ctx.beginPath();
+    ctx.moveTo(r * 1.3, 0);
+    ctx.lineTo(-r * 0.9, -r * 0.95); ctx.lineTo(-r * 1.05, -r * 0.9);
+    ctx.lineTo(-r * 1.05, r * 0.9); ctx.lineTo(-r * 0.9, r * 0.95);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = body;
+    ctx.beginPath();
+    ctx.moveTo(r * 1.05, 0); ctx.lineTo(-r * 0.8, -r * 0.62); ctx.lineTo(-r * 0.8, r * 0.62);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = light;
+    ctx.beginPath(); ctx.ellipse(r * 0.35, 0, r * 0.22, r * 0.15, 0, 0, U.TAU); ctx.fill();
+    ctx.fillStyle = NACELLE;                                 // outboard engines
+    ctx.fillRect(-r * 1.02, -r * 0.92, r * 0.2, r * 0.36);
+    ctx.fillRect(-r * 1.02, r * 0.56, r * 0.2, r * 0.36);
+    ctx.fillStyle = EXHAUST;
+    ctx.fillRect(-r * 1.12, -r * 0.87, r * 0.12, r * 0.26);
+    ctx.fillRect(-r * 1.12, r * 0.61, r * 0.12, r * 0.26);
+    ctx.fillStyle = light;                                   // wingtip cannons
+    for (let s = -1; s <= 1; s += 2) ctx.fillRect(-r * 0.5, s * r * 0.86 - r * 0.04, r * 0.7, r * 0.08);
+  }
+
+  function drawXwing(ctx, r, body, dark, light) {
+    /* Two foils sweeping back, two forward — the open-S-foil X from above. */
+    const tips = [[-r * 1.25, -r * 1.15], [r * 0.05, -r * 1.1],
+      [-r * 1.25, r * 1.15], [r * 0.05, r * 1.1]];
+    ctx.fillStyle = dark;
+    tips.forEach(function (w) {
+      const s = w[1] < 0 ? -1 : 1;
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.5, s * r * 0.05);
+      ctx.lineTo(w[0] + r * 0.18, w[1]);
+      ctx.lineTo(w[0] - r * 0.12, w[1]);
+      ctx.lineTo(-r * 0.66, s * r * 0.24);
+      ctx.closePath(); ctx.fill();
+    });
+    ctx.strokeStyle = light; ctx.lineWidth = Math.max(1, r * 0.11);   // wingtip cannons
+    tips.forEach(function (w) {
+      ctx.beginPath();
+      ctx.moveTo(w[0] - r * 0.12, w[1]); ctx.lineTo(w[0] + r * 0.8, w[1]);
+      ctx.stroke();
+    });
+    ctx.fillStyle = NACELLE;                                 // engine nacelles
+    for (let s = -1; s <= 1; s += 2) {
+      ctx.beginPath(); ctx.ellipse(-r * 0.75, s * r * 0.44, r * 0.36, r * 0.18, 0, 0, U.TAU); ctx.fill();
+    }
+    ctx.fillStyle = EXHAUST;
+    for (let s = -1; s <= 1; s += 2) {
+      ctx.beginPath(); ctx.ellipse(-r * 1.04, s * r * 0.44, r * 0.1, r * 0.13, 0, 0, U.TAU); ctx.fill();
+    }
+    ctx.fillStyle = body;                                    // fuselage
+    ctx.beginPath();
+    ctx.moveTo(r * 1.35, 0); ctx.lineTo(r * 0.45, -r * 0.2);
+    ctx.lineTo(-r * 1.0, -r * 0.26); ctx.lineTo(-r * 1.0, r * 0.26);
+    ctx.lineTo(r * 0.45, r * 0.2);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = light;
+    ctx.beginPath(); ctx.ellipse(r * 0.08, 0, r * 0.24, r * 0.16, 0, 0, U.TAU); ctx.fill();
+    ctx.fillStyle = dark;                                    // astromech socket
+    ctx.beginPath(); ctx.arc(-r * 0.45, 0, r * 0.15, 0, U.TAU); ctx.fill();
+  }
+
+  function drawYwing(ctx, r, body, dark, light) {
+    ctx.fillStyle = dark;                                    // the two nacelles
+    for (let s = -1; s <= 1; s += 2) {
+      roundRect(ctx, -r * 1.25, s * r * 0.52 - r * 0.24, r * 2.0, r * 0.48, r * 0.2);
+      ctx.fill();
+    }
+    ctx.fillStyle = NACELLE;
+    for (let s = -1; s <= 1; s += 2) ctx.fillRect(-r * 1.42, s * r * 0.52 - r * 0.17, r * 0.2, r * 0.34);
+    ctx.fillStyle = EXHAUST;
+    for (let s = -1; s <= 1; s += 2) ctx.fillRect(-r * 1.5, s * r * 0.52 - r * 0.12, r * 0.1, r * 0.24);
+    ctx.fillStyle = dark;                                    // spar
+    ctx.fillRect(-r * 0.25, -r * 0.66, r * 0.5, r * 1.32);
+    ctx.fillStyle = body;                                    // fuselage
+    ctx.beginPath();
+    ctx.moveTo(r * 1.5, 0); ctx.lineTo(r * 0.75, -r * 0.3);
+    ctx.lineTo(-r * 1.15, -r * 0.3); ctx.lineTo(-r * 1.15, r * 0.3);
+    ctx.lineTo(r * 0.75, r * 0.3);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = light;
+    ctx.beginPath(); ctx.ellipse(r * 0.5, 0, r * 0.3, r * 0.2, 0, 0, U.TAU); ctx.fill();
+    ctx.fillStyle = dark;                                    // ion turret
+    ctx.beginPath(); ctx.arc(-r * 0.2, 0, r * 0.22, 0, U.TAU); ctx.fill();
+  }
+
+  function drawBwing(ctx, r, body, dark, light) {
+    ctx.fillStyle = dark;                                    // primary airfoil
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.15, -r * 1.5); ctx.lineTo(r * 0.25, -r * 1.35);
+    ctx.lineTo(r * 0.3, r * 1.35); ctx.lineTo(-r * 0.2, r * 1.5);
+    ctx.closePath(); ctx.fill();
+    for (let s = -1; s <= 1; s += 2) {                       // cross foils
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.5, s * r * 0.15); ctx.lineTo(-r * 1.0, s * r * 0.95);
+      ctx.lineTo(-r * 1.18, s * r * 0.85); ctx.lineTo(-r * 0.68, s * r * 0.1);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.fillStyle = body;                                    // hull
+    ctx.beginPath();
+    ctx.moveTo(r * 1.45, 0); ctx.lineTo(r * 0.6, -r * 0.26);
+    ctx.lineTo(-r * 1.1, -r * 0.3); ctx.lineTo(-r * 1.1, r * 0.3);
+    ctx.lineTo(r * 0.6, r * 0.26);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = light;                                   // gyro cockpit, right at the nose
+    ctx.beginPath(); ctx.ellipse(r * 0.9, 0, r * 0.24, r * 0.17, 0, 0, U.TAU); ctx.fill();
+    ctx.fillStyle = NACELLE;
+    ctx.fillRect(-r * 1.28, -r * 0.3, r * 0.22, r * 0.6);
+    ctx.fillStyle = EXHAUST;
+    ctx.fillRect(-r * 1.38, -r * 0.2, r * 0.12, r * 0.4);
+  }
+
+  function drawFreighter(ctx, r, body, dark, light) {
+    ctx.fillStyle = dark;                                    // forward mandibles
+    for (let s = -1; s <= 1; s += 2) {
+      ctx.beginPath();
+      ctx.moveTo(r * 0.35, s * r * 0.15); ctx.lineTo(r * 1.45, s * r * 0.26);
+      ctx.lineTo(r * 1.45, s * r * 0.6); ctx.lineTo(r * 0.3, s * r * 0.64);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.beginPath(); ctx.arc(0, 0, r, 0, U.TAU); ctx.fill();  // saucer
+    ctx.fillStyle = body;
+    ctx.beginPath(); ctx.arc(0, 0, r * 0.85, 0, U.TAU); ctx.fill();
+    ctx.fillStyle = dark;                                    // dorsal turret ring
+    ctx.beginPath(); ctx.arc(0, 0, r * 0.3, 0, U.TAU); ctx.fill();
+    ctx.fillStyle = body;                                    // offset cockpit tube
+    ctx.beginPath();
+    ctx.moveTo(r * 0.5, r * 0.5); ctx.lineTo(r * 1.12, r * 0.86);
+    ctx.lineTo(r * 1.0, r * 1.06); ctx.lineTo(r * 0.35, r * 0.72);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = light;
+    ctx.beginPath(); ctx.arc(r * 1.0, r * 0.9, r * 0.14, 0, U.TAU); ctx.fill();
+    ctx.fillStyle = EXHAUST;                                 // stern drive strip
+    roundRect(ctx, -r * 1.04, -r * 0.5, r * 0.16, r * 1.0, r * 0.07); ctx.fill();
+  }
+
+  function drawTransport(ctx, r, body, dark, light) {
+    ctx.fillStyle = dark;
+    ctx.beginPath();
+    ctx.moveTo(r * 1.35, 0); ctx.lineTo(r * 0.55, -r * 0.72);
+    ctx.lineTo(-r * 1.15, -r * 0.8); ctx.lineTo(-r * 1.3, 0);
+    ctx.lineTo(-r * 1.15, r * 0.8); ctx.lineTo(r * 0.55, r * 0.72);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = body;
+    ctx.beginPath();
+    ctx.moveTo(r * 1.05, 0); ctx.lineTo(r * 0.45, -r * 0.5);
+    ctx.lineTo(-r * 0.95, -r * 0.56); ctx.lineTo(-r * 0.95, r * 0.56);
+    ctx.lineTo(r * 0.45, r * 0.5);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = dark;                                    // containers lashed to the spine
+    for (let i = 0; i < 3; i++) {
+      roundRect(ctx, -r * 0.82 + i * r * 0.52, -r * 0.34, r * 0.42, r * 0.68, 2);
+      ctx.fill();
+    }
+    ctx.fillStyle = light;
+    ctx.beginPath(); ctx.ellipse(r * 0.78, 0, r * 0.18, r * 0.13, 0, 0, U.TAU); ctx.fill();
+    ctx.fillStyle = EXHAUST;
+    ctx.fillRect(-r * 1.22, -r * 0.42, r * 0.12, r * 0.84);
+  }
+
+  function drawCorvette(ctx, r, body, dark, light) {
+    ctx.fillStyle = dark;                                    // hammerhead bridge
+    roundRect(ctx, r * 0.95, -r * 0.62, r * 0.62, r * 1.24, r * 0.16); ctx.fill();
+    ctx.fillStyle = body;
+    roundRect(ctx, r * 1.05, -r * 0.48, r * 0.42, r * 0.96, r * 0.12); ctx.fill();
+    ctx.fillStyle = light;
+    ctx.fillRect(r * 1.36, -r * 0.2, r * 0.12, r * 0.4);
+    ctx.fillStyle = dark;                                    // neck
+    ctx.fillRect(r * 0.45, -r * 0.2, r * 0.6, r * 0.4);
+    ctx.beginPath();                                         // hull
+    ctx.moveTo(r * 0.75, -r * 0.34); ctx.lineTo(-r * 1.2, -r * 0.5);
+    ctx.lineTo(-r * 1.2, r * 0.5); ctx.lineTo(r * 0.75, r * 0.34);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = body;
+    ctx.beginPath();
+    ctx.moveTo(r * 0.6, -r * 0.24); ctx.lineTo(-r * 1.05, -r * 0.36);
+    ctx.lineTo(-r * 1.05, r * 0.36); ctx.lineTo(r * 0.6, r * 0.24);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = NACELLE;                                 // the famous engine bank
+    ctx.fillRect(-r * 1.35, -r * 0.5, r * 0.2, r * 1.0);
+    ctx.fillStyle = EXHAUST;
+    for (let i = -2; i <= 2; i++) {
+      ctx.beginPath(); ctx.arc(-r * 1.32, i * r * 0.2, r * 0.078, 0, U.TAU); ctx.fill();
+    }
+  }
+
+  function drawFrigate(ctx, r, body, dark, light) {
+    ctx.fillStyle = dark;                                    // forward command section
+    roundRect(ctx, r * 0.55, -r * 0.7, r * 0.95, r * 1.4, r * 0.18); ctx.fill();
+    ctx.fillStyle = body;
+    roundRect(ctx, r * 0.66, -r * 0.55, r * 0.72, r * 1.1, r * 0.14); ctx.fill();
+    ctx.fillStyle = light;
+    ctx.beginPath(); ctx.arc(r * 1.26, 0, r * 0.16, 0, U.TAU); ctx.fill();
+    ctx.fillStyle = dark;                                    // the spine everyone aims at
+    ctx.fillRect(-r * 0.55, -r * 0.18, r * 1.15, r * 0.36);
+    ctx.fillStyle = body;
+    ctx.fillRect(-r * 0.5, -r * 0.1, r * 1.05, r * 0.2);
+    ctx.fillStyle = dark;                                    // engineering block
+    roundRect(ctx, -r * 1.3, -r * 0.85, r * 0.8, r * 1.7, r * 0.14); ctx.fill();
+    ctx.fillStyle = body;
+    roundRect(ctx, -r * 1.2, -r * 0.7, r * 0.6, r * 1.4, r * 0.1); ctx.fill();
+    ctx.fillStyle = EXHAUST;
+    for (let i = -1; i <= 1; i++) {
+      ctx.beginPath(); ctx.arc(-r * 1.34, i * r * 0.36, r * 0.11, 0, U.TAU); ctx.fill();
+    }
+  }
+
+  function drawStarCruiser(ctx, r, body, dark, light) {
+    ctx.fillStyle = dark;                                    // organic Mon Cal hull
+    ctx.beginPath();
+    ctx.moveTo(r * 1.65, 0);
+    ctx.quadraticCurveTo(r * 0.7, -r * 0.52, -r * 0.35, -r * 0.62);
+    ctx.quadraticCurveTo(-r * 1.2, -r * 0.6, -r * 1.5, -r * 0.3);
+    ctx.lineTo(-r * 1.5, r * 0.3);
+    ctx.quadraticCurveTo(-r * 1.2, r * 0.6, -r * 0.35, r * 0.62);
+    ctx.quadraticCurveTo(r * 0.7, r * 0.52, r * 1.65, 0);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = body;
+    ctx.beginPath();
+    ctx.moveTo(r * 1.4, 0);
+    ctx.quadraticCurveTo(r * 0.6, -r * 0.38, -r * 0.35, -r * 0.46);
+    ctx.quadraticCurveTo(-r * 1.05, -r * 0.44, -r * 1.32, -r * 0.22);
+    ctx.lineTo(-r * 1.32, r * 0.22);
+    ctx.quadraticCurveTo(-r * 1.05, r * 0.44, -r * 0.35, r * 0.46);
+    ctx.quadraticCurveTo(r * 0.6, r * 0.38, r * 1.4, 0);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = dark;                                    // dorsal ridge
+    ctx.beginPath(); ctx.ellipse(-r * 0.1, 0, r * 0.78, r * 0.2, 0, 0, U.TAU); ctx.fill();
+    ctx.fillStyle = light;                                   // turret blisters
+    for (let s = -1; s <= 1; s += 2) {
+      ctx.beginPath(); ctx.ellipse(r * 0.4, s * r * 0.3, r * 0.16, r * 0.1, 0, 0, U.TAU); ctx.fill();
+    }
+    ctx.fillStyle = EXHAUST;
+    for (let i = -1; i <= 1; i++) {
+      ctx.beginPath(); ctx.arc(-r * 1.48, i * r * 0.2, r * 0.1, 0, U.TAU); ctx.fill();
+    }
+  }
+
+  function drawPlatform(ctx, r, body, dark, light) {
+    ctx.fillStyle = dark;                                    // gun arms
+    for (let i = 0; i < 3; i++) {
+      ctx.save();
+      ctx.rotate((i / 3) * U.TAU);
+      roundRect(ctx, r * 0.3, -r * 0.2, r * 1.1, r * 0.4, r * 0.1); ctx.fill();
+      ctx.restore();
+    }
+    hexagon(ctx, r * 0.82); ctx.fillStyle = dark; ctx.fill();
+    hexagon(ctx, r * 0.62); ctx.fillStyle = body; ctx.fill();
+    ctx.fillStyle = light;
+    ctx.beginPath(); ctx.arc(0, 0, r * 0.24, 0, U.TAU); ctx.fill();
+  }
+
+  function hexagon(ctx, r) {
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * U.TAU + Math.PI / 6;
+      const px = Math.cos(a) * r, py = Math.sin(a) * r;
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+  }
+
+  /* The TIE line: a ball between two panels seen edge-on. What separates the
+   * variants from above is the panel outline and how many there are. */
+  function drawTie(ctx, r, body, dark, light) {
+    ctx.fillStyle = dark;
+    for (let s = -1; s <= 1; s += 2) {
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.72, s * r * 0.72); ctx.lineTo(r * 0.72, s * r * 0.72);
+      ctx.lineTo(r * 0.6, s * r * 1.08); ctx.lineTo(-r * 0.6, s * r * 1.08);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.fillRect(-r * 0.12, -r * 0.9, r * 0.24, r * 1.8);     // pylons
+    ctx.beginPath(); ctx.arc(0, 0, r * 0.52, 0, U.TAU); ctx.fill();
+    ctx.fillStyle = body;
+    ctx.beginPath(); ctx.arc(0, 0, r * 0.4, 0, U.TAU); ctx.fill();
+    ctx.fillStyle = light;
+    ctx.beginPath(); ctx.arc(r * 0.15, 0, r * 0.17, 0, U.TAU); ctx.fill();
+    ctx.fillStyle = NACELLE;                                 // chin cannons
+    for (let s = -1; s <= 1; s += 2) ctx.fillRect(r * 0.34, s * r * 0.2 - r * 0.05, r * 0.42, r * 0.1);
+  }
+
+  function drawTieInt(ctx, r, body, dark, light) {
+    ctx.fillStyle = dark;                                    // swept dagger panels
+    for (let s = -1; s <= 1; s += 2) {
+      ctx.beginPath();
+      ctx.moveTo(r * 0.95, s * r * 0.6); ctx.lineTo(-r * 0.85, s * r * 0.68);
+      ctx.lineTo(-r * 0.7, s * r * 1.14); ctx.lineTo(r * 0.45, s * r * 1.0);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.fillRect(-r * 0.1, -r * 0.85, r * 0.2, r * 1.7);
+    ctx.beginPath(); ctx.arc(0, 0, r * 0.48, 0, U.TAU); ctx.fill();
+    ctx.fillStyle = body;
+    ctx.beginPath(); ctx.arc(0, 0, r * 0.36, 0, U.TAU); ctx.fill();
+    ctx.fillStyle = light;
+    ctx.beginPath(); ctx.arc(r * 0.13, 0, r * 0.15, 0, U.TAU); ctx.fill();
+    for (let s = -1; s <= 1; s += 2) {                       // wingtip cannons
+      ctx.fillRect(r * 0.42, s * r * 0.94 - r * 0.05, r * 0.52, r * 0.1);
+    }
+  }
+
+  function drawTieBomber(ctx, r, body, dark, light) {
+    ctx.fillStyle = dark;
+    for (let s = -1; s <= 1; s += 2) {
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.7, s * r * 0.92); ctx.lineTo(r * 0.7, s * r * 0.92);
+      ctx.lineTo(r * 0.58, s * r * 1.26); ctx.lineTo(-r * 0.58, s * r * 1.26);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.fillRect(-r * 0.2, -r * 1.05, r * 0.4, r * 2.1);
+    for (let s = -1; s <= 1; s += 2) {                       // twin pods
+      ctx.fillStyle = dark;
+      roundRect(ctx, -r * 0.85, s * r * 0.34 - r * 0.28, r * 1.7, r * 0.56, r * 0.24); ctx.fill();
+      ctx.fillStyle = body;
+      roundRect(ctx, -r * 0.72, s * r * 0.34 - r * 0.2, r * 1.44, r * 0.4, r * 0.18); ctx.fill();
+    }
+    ctx.fillStyle = light;                                   // cockpit in the port pod
+    ctx.beginPath(); ctx.ellipse(r * 0.55, -r * 0.34, r * 0.2, r * 0.13, 0, 0, U.TAU); ctx.fill();
+    ctx.fillStyle = NACELLE;                                 // bomb bay doors
+    ctx.fillRect(r * 0.1, r * 0.22, r * 0.55, r * 0.24);
+  }
+
+  function drawTieDef(ctx, r, body, dark, light) {
+    for (let i = 0; i < 3; i++) {                            // three panels at 120°
+      ctx.save();
+      ctx.rotate(Math.PI / 2 + (i / 3) * U.TAU);
+      ctx.fillStyle = dark;
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.6, r * 0.6); ctx.lineTo(r * 0.6, r * 0.6);
+      ctx.lineTo(r * 0.45, r * 1.18); ctx.lineTo(-r * 0.45, r * 1.18);
+      ctx.closePath(); ctx.fill();
+      ctx.fillRect(-r * 0.09, 0, r * 0.18, r * 0.78);
+      ctx.restore();
+    }
+    ctx.fillStyle = dark;
+    ctx.beginPath(); ctx.arc(0, 0, r * 0.5, 0, U.TAU); ctx.fill();
+    ctx.fillStyle = body;
+    ctx.beginPath(); ctx.arc(0, 0, r * 0.38, 0, U.TAU); ctx.fill();
+    ctx.fillStyle = light;
+    ctx.beginPath(); ctx.arc(r * 0.15, 0, r * 0.16, 0, U.TAU); ctx.fill();
+    for (let s = -1; s <= 1; s += 2) ctx.fillRect(r * 0.4, s * r * 0.22 - r * 0.05, r * 0.58, r * 0.1);
+  }
+
+  function drawGunboat(ctx, r, body, dark, light) {
+    ctx.fillStyle = dark;                                    // swept wings
+    for (let s = -1; s <= 1; s += 2) {
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.1, s * r * 0.2); ctx.lineTo(-r * 0.75, s * r * 1.15);
+      ctx.lineTo(-r * 1.05, s * r * 1.05); ctx.lineTo(-r * 0.6, s * r * 0.18);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.fillStyle = body;                                    // long nose
+    ctx.beginPath();
+    ctx.moveTo(r * 1.5, 0); ctx.lineTo(r * 0.5, -r * 0.28);
+    ctx.lineTo(-r * 1.0, -r * 0.42); ctx.lineTo(-r * 1.0, r * 0.42);
+    ctx.lineTo(r * 0.5, r * 0.28);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = light;
+    ctx.beginPath(); ctx.ellipse(r * 0.5, 0, r * 0.24, r * 0.16, 0, 0, U.TAU); ctx.fill();
+    ctx.fillStyle = NACELLE;
+    ctx.fillRect(-r * 1.12, -r * 0.44, r * 0.16, r * 0.88);
+    ctx.fillStyle = EXHAUST;
+    for (let i = -1; i <= 1; i++) {
+      ctx.beginPath(); ctx.arc(-r * 1.1, i * r * 0.28, r * 0.09, 0, U.TAU); ctx.fill();
+    }
+  }
+
+  function drawShuttle(ctx, r, body, dark, light) {
+    ctx.fillStyle = dark;                                    // the two lower wings
+    for (let s = -1; s <= 1; s += 2) {
+      ctx.beginPath();
+      ctx.moveTo(r * 0.1, s * r * 0.2); ctx.lineTo(-r * 1.15, s * r * 1.28);
+      ctx.lineTo(-r * 1.32, s * r * 1.05); ctx.lineTo(-r * 0.35, s * r * 0.15);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.beginPath();                                         // dorsal fin between them
+    ctx.moveTo(r * 0.2, 0); ctx.lineTo(-r * 1.35, -r * 0.16); ctx.lineTo(-r * 1.35, r * 0.16);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = body;
+    ctx.beginPath();
+    ctx.moveTo(r * 1.45, 0); ctx.lineTo(r * 0.5, -r * 0.3);
+    ctx.lineTo(-r * 0.85, -r * 0.4); ctx.lineTo(-r * 0.85, r * 0.4);
+    ctx.lineTo(r * 0.5, r * 0.3);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = light;
+    ctx.beginPath(); ctx.ellipse(r * 0.8, 0, r * 0.22, r * 0.15, 0, 0, U.TAU); ctx.fill();
+    ctx.fillStyle = EXHAUST;
+    ctx.fillRect(-r * 0.96, -r * 0.3, r * 0.12, r * 0.6);
+  }
+
+  function drawEscort(ctx, r, body, dark, light) {
+    ctx.fillStyle = dark;                                    // side fins
+    for (let s = -1; s <= 1; s += 2) {
+      ctx.beginPath();
+      ctx.moveTo(r * 0.3, s * r * 0.42); ctx.lineTo(-r * 0.2, s * r * 0.98);
+      ctx.lineTo(-r * 1.0, s * r * 0.98); ctx.lineTo(-r * 1.0, s * r * 0.42);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.beginPath();                                         // hull
+    ctx.moveTo(r * 1.5, 0); ctx.lineTo(r * 0.85, -r * 0.4);
+    ctx.lineTo(-r * 1.15, -r * 0.46); ctx.lineTo(-r * 1.15, r * 0.46);
+    ctx.lineTo(r * 0.85, r * 0.4);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = body;
+    ctx.beginPath();
+    ctx.moveTo(r * 1.28, 0); ctx.lineTo(r * 0.75, -r * 0.28);
+    ctx.lineTo(-r * 1.0, -r * 0.33); ctx.lineTo(-r * 1.0, r * 0.33);
+    ctx.lineTo(r * 0.75, r * 0.28);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = light;                                   // bridge
+    roundRect(ctx, -r * 0.58, -r * 0.16, r * 0.34, r * 0.32, r * 0.06); ctx.fill();
+    ctx.fillStyle = EXHAUST;
+    for (let i = -1; i <= 1; i++) {
+      ctx.beginPath(); ctx.arc(-r * 1.2, i * r * 0.24, r * 0.1, 0, U.TAU); ctx.fill();
+    }
+  }
+
+  function drawRaider(ctx, r, body, dark, light) {
+    ctx.fillStyle = dark;
+    ctx.beginPath();
+    ctx.moveTo(r * 1.6, 0); ctx.lineTo(-r * 1.1, -r * 0.62);
+    ctx.lineTo(-r * 1.25, -r * 0.3); ctx.lineTo(-r * 1.25, r * 0.3);
+    ctx.lineTo(-r * 1.1, r * 0.62);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = body;
+    ctx.beginPath();
+    ctx.moveTo(r * 1.35, 0); ctx.lineTo(-r * 0.95, -r * 0.42);
+    ctx.lineTo(-r * 1.05, 0); ctx.lineTo(-r * 0.95, r * 0.42);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = dark;                                    // missile pods
+    for (let s = -1; s <= 1; s += 2) {
+      roundRect(ctx, -r * 0.5, s * r * 0.44 - r * 0.12, r * 0.85, r * 0.24, r * 0.08); ctx.fill();
+    }
+    ctx.fillStyle = light;
+    roundRect(ctx, -r * 0.78, -r * 0.14, r * 0.3, r * 0.28, r * 0.06); ctx.fill();
+    ctx.fillStyle = EXHAUST;
+    for (let i = -1; i <= 1; i++) {
+      ctx.beginPath(); ctx.arc(-r * 1.2, i * r * 0.22, r * 0.09, 0, U.TAU); ctx.fill();
+    }
+  }
+
+  function drawWedge(ctx, r, body, dark, light) {
+    ctx.fillStyle = dark;                                    // dagger hull
+    ctx.beginPath();
+    ctx.moveTo(r * 1.75, 0); ctx.lineTo(-r * 1.15, -r * 0.95);
+    ctx.lineTo(-r * 1.3, -r * 0.8); ctx.lineTo(-r * 1.3, r * 0.8);
+    ctx.lineTo(-r * 1.15, r * 0.95);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = body;
+    ctx.beginPath();
+    ctx.moveTo(r * 1.5, 0); ctx.lineTo(-r * 1.02, -r * 0.76);
+    ctx.lineTo(-r * 1.15, -r * 0.64); ctx.lineTo(-r * 1.15, r * 0.64);
+    ctx.lineTo(-r * 1.02, r * 0.76);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = dark;                                  // panel lines to the bow
+    ctx.lineWidth = Math.max(0.8, r * 0.035);
+    for (let s = -1; s <= 1; s += 2) {
+      ctx.beginPath();
+      ctx.moveTo(r * 1.45, 0); ctx.lineTo(-r * 1.05, s * r * 0.5);
+      ctx.stroke();
+    }
+    ctx.fillStyle = dark;                                    // superstructure
+    roundRect(ctx, -r * 0.98, -r * 0.42, r * 0.88, r * 0.84, r * 0.06); ctx.fill();
+    ctx.fillStyle = light;                                   // command tower
+    roundRect(ctx, -r * 0.74, -r * 0.2, r * 0.36, r * 0.4, r * 0.05); ctx.fill();
+    ctx.fillStyle = dark;                                    // sensor globes
+    ctx.beginPath(); ctx.arc(-r * 0.56, -r * 0.13, r * 0.09, 0, U.TAU); ctx.fill();
+    ctx.beginPath(); ctx.arc(-r * 0.56, r * 0.13, r * 0.09, 0, U.TAU); ctx.fill();
+    ctx.fillStyle = NACELLE;                                 // main drives
+    ctx.fillRect(-r * 1.38, -r * 0.68, r * 0.18, r * 1.36);
+    ctx.fillStyle = 'rgba(200,232,255,0.8)';
+    const bells = [0, 0.32, -0.32, 0.58, -0.58];
+    for (let i = 0; i < bells.length; i++) {
+      ctx.beginPath();
+      ctx.arc(-r * 1.33, bells[i] * r, i < 3 ? r * 0.15 : r * 0.1, 0, U.TAU);
+      ctx.fill();
+    }
+  }
+
   function roundRect(ctx, x, y, w, h, r) {
     ctx.beginPath();
     ctx.moveTo(x + r, y);
@@ -1145,9 +1941,15 @@
     ctx.closePath();
   }
 
-  /* Small standalone icon used by the roster list. */
+  /* Small standalone icon used by the roster list.
+   *
+   * The radius factor has to clear the longest thing any shape draws, not the
+   * average one: hulls run out to about 1.75r ahead of centre (a Star Destroyer,
+   * a battleship) and horns and tails to about 1.6r, while a long gun barrel
+   * reaches 1.9r — so anything above 0.26 lops the nose off the biggest ships
+   * and the muzzle off the artillery in the roster list. */
   Renderer.drawIcon = function (ctx, type, team, size) {
-    const r = size * 0.34;
+    const r = size * 0.26;
     const col = TEAM[team];
     /* drawTurret needs a unit-like object; only the turreted vehicle shapes use it. */
     const fake = { radius: r, shape: type.shape, domain: type.domain, maxRange: type.maxRange };

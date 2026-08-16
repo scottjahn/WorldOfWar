@@ -30,6 +30,7 @@ const ASSETS = [
   './js/units.js',
   './js/roster-earth.js',
   './js/roster-animals.js',
+  './js/roster-space.js',
   './js/terrain.js',
   './js/editions.js',
   './js/sim.js',

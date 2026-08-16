@@ -78,6 +78,122 @@
     }
   ];
 
+  /* Space has no water either, and reuses the surface types for vacuum:
+   * GRASS is open space, SAND is a dust and debris wash, FOREST is nebula gas
+   * that drags a hull down to 60% speed, and ROCK is a rock — an asteroid or a
+   * planet — that nothing flies through.
+   *
+   * The ambient noise pass only ever produces a scatter, so anything with a
+   * shape (a belt, a planet) is drawn by the map's own `carve`. See
+   * Terrain.prototype.decorate for when that runs and why. */
+  const SPACE_MAPS = [
+    {
+      id: 'deepspace', name: 'Deep Space',
+      blurb: 'Empty sky between two stars. No cover, no chokepoints — the fleets simply meet.',
+      water: function () { return false; },
+      forestBias: -0.55, rockBias: -0.42,
+      space: { tint: '#1c2a58', clouds: 0.25, stars: 1 }
+    },
+    {
+      id: 'orbit', name: 'Planetary Orbit',
+      blurb: 'A world fills the lower sky and a moon hangs above. Nothing crosses either — ' +
+        'the fight is decided in the lanes around them.',
+      water: function () { return false; },
+      forestBias: -0.5, rockBias: -0.4,
+      space: { tint: '#132446', clouds: 0.3, stars: 1 },
+      carve: function (t) {
+        const R = W.Terrain.ROCK;
+        /* Kept inside the middle of the field on purpose: the deployment strips
+         * are scrubbed of rock after this runs, which would bite a notch out of
+         * anything overlapping them. */
+        const planet = { x: t.cols * 0.5, y: t.rows * 1.0, r: t.rows * 0.38 };
+        const moon = { x: t.cols * 0.5, y: t.rows * 0.2, r: t.rows * 0.125 };
+        t.disc(planet.x, planet.y, planet.r, R);
+        t.disc(moon.x, moon.y, moon.r, R);
+        const TS = t.tileSize;
+        t.props.push({
+          kind: 'planet', x: planet.x * TS, y: planet.y * TS, r: planet.r * TS,
+          color: '#3f6a52', shade: '#1a3128', atmos: 'rgba(150,220,255,0.55)', bands: 4
+        });
+        t.props.push({
+          kind: 'planet', x: moon.x * TS, y: moon.y * TS, r: moon.r * TS,
+          color: '#8d8a84', shade: '#3a3835', atmos: null, craters: 7
+        });
+      }
+    },
+    {
+      id: 'asteroids', name: 'Asteroid Belt',
+      blurb: 'A belt of rock and dust straight across the middle. Everything in it slows down, ' +
+        'and the big hulls have to pick their way through.',
+      water: function () { return false; },
+      forestBias: -0.5, rockBias: -0.3,
+      space: { tint: '#3b2c20', clouds: 0.35, stars: 0.9 },
+      carve: function (t, noise) {
+        const ROCK = W.Terrain.ROCK, SAND = W.Terrain.SAND;
+        for (let y = 0; y < t.rows; y++) {
+          for (let x = 0; x < t.cols; x++) {
+            const ny = y / t.rows;
+            const centre = 0.5 + noise(x * 0.03, 700, 3) * 0.16;
+            const half = 0.16 + noise(x * 0.05, 900, 2) * 0.05;
+            const off = Math.abs(ny - centre);
+            if (off > half) continue;
+            /* Densest along the spine, fraying out to loose dust at the edges. */
+            const density = 1 - off / half;
+            const n = noise(x * 0.16 + 40, y * 0.16 + 40, 2);
+            t.tiles[y * t.cols + x] = (n + density * 0.35 > 0.60) ? ROCK : SAND;
+          }
+        }
+      }
+    },
+    {
+      id: 'nebula', name: 'Ion Nebula',
+      blurb: 'Charged gas across most of the field. Everything crawls, so the long guns never ' +
+        'get the range they were bought for.',
+      water: function () { return false; },
+      forestBias: 0.24, rockBias: -0.35,
+      space: { tint: '#4b2a63', clouds: 1, stars: 0.55 },
+      carve: function (t, noise) {
+        const FOREST = W.Terrain.FOREST;
+        /* A couple of dense cores so the gas has a shape rather than just a
+         * uniform speckle. */
+        for (let i = 0; i < 3; i++) {
+          const cx = t.cols * (0.34 + i * 0.16);
+          const cy = t.rows * (0.5 + noise(i * 7.7, 1200, 2) * 0.34);
+          t.disc(cx, cy, t.rows * 0.2, FOREST);
+        }
+      }
+    },
+    {
+      id: 'graveyard', name: 'The Graveyard',
+      blurb: 'Somebody else\'s battle, cold for a century. Drifting hulks block the lanes and ' +
+        'the debris between them fouls a drive.',
+      water: function () { return false; },
+      forestBias: -0.45, rockBias: -0.2,
+      space: { tint: '#26333c', clouds: 0.4, stars: 0.8 },
+      carve: function (t, noise, rand) {
+        const ROCK = W.Terrain.ROCK, SAND = W.Terrain.SAND;
+        /* A wash of debris down the middle third. */
+        for (let y = 0; y < t.rows; y++) {
+          for (let x = 0; x < t.cols; x++) {
+            const nx = x / t.cols;
+            if (nx < 0.24 || nx > 0.76) continue;
+            if (noise(x * 0.1 + 300, y * 0.1 + 300, 2) < 0.06) continue;
+            const i = y * t.cols + x;
+            if (t.tiles[i] !== ROCK) t.tiles[i] = SAND;
+          }
+        }
+        /* Derelict hulks: solid enough to path around, each in its own debris halo. */
+        for (let i = 0; i < 16; i++) {
+          const cx = t.cols * (0.3 + rand() * 0.4);
+          const cy = t.rows * (0.08 + rand() * 0.84);
+          const r = 1.6 + rand() * 2.6;
+          t.disc(cx, cy, r + 2.2, SAND);
+          t.disc(cx, cy, r, ROCK);
+        }
+      }
+    }
+  ];
+
   const EDITIONS = [
     {
       id: 'earth',
@@ -93,8 +209,8 @@
       budgets: [1500, 3000, 6000, 12000],
       defaultBudget: 3000,
       defaultMap: 'coast',
-      teams: ['Blue', 'Red'],
-      teamsShort: ['BLUE', 'RED'],
+      teams: ['Red', 'Blue'],
+      teamsShort: ['RED', 'BLUE'],
       factions: false,           // both sides buy from the same roster
       defeat: 'destroy',
       words: {
@@ -123,6 +239,7 @@
       teams: ['Household Pets', 'Killer Animals'],
       teamsShort: ['PETS', 'WILD'],
       factions: true,            // each side has its own roster
+      factionWord: 'animals',
       defeat: 'flee',
       words: {
         wipeout: 'Every rival fled the field',
@@ -136,10 +253,39 @@
       id: 'space',
       name: 'World of War: Space',
       short: 'Space',
-      tagline: 'Fleet actions in open space',
-      blurb: 'Capital ships, fighter wings and orbital bombardment.',
+      tagline: 'Rebel Alliance vs Imperial Navy',
+      blurb: 'Starfighters, capital ships and turbolasers. One domain — everything flies.',
       emblem: '🚀',
-      available: false
+      available: true,
+      roster: function () { return W.RosterSpace; },
+      maps: SPACE_MAPS,
+      /* The widest field in the game: a Star Destroyer's main battery reaches
+       * 1,150 on its own, so a smaller board would start the battle already in
+       * range and skip the approach entirely. */
+      cols: 140, rows: 80,
+      budgets: [2000, 4000, 8000, 16000],
+      defaultBudget: 4000,
+      defaultMap: 'orbit',
+      teams: ['Rebel Alliance', 'Imperial Navy'],
+      teamsShort: ['REBELS', 'EMPIRE'],
+      factions: true,            // each navy has its own roster
+      factionWord: 'ships',
+      defeat: 'destroy',
+      look: 'space',             // renderer swaps to a starfield palette
+      scars: false,              // no ground out here to hold a crater
+      /* One domain, so the land/air/sea tabs collapse to a single shelf and the
+       * detail panel drops the "Engages" line — it would say the same thing for
+       * every weapon in the edition. */
+      singleDomain: true,
+      bucketNames: { land: 'Fleet' },
+      words: {
+        wipeout: 'Enemy fleet destroyed',
+        survivors: 'Ships left',
+        lost: 'Tonnage lost',
+        remaining: 'Fleet value',
+        unitsLeft: 'left',
+        blocked: 'Cannot deploy inside an asteroid'
+      }
     },
     {
       id: 'prehistoric',
@@ -185,7 +331,7 @@
   }
 
   function teamName(team) {
-    return active && active.teams ? active.teams[team] : (team === 0 ? 'Blue' : 'Red');
+    return active && active.teams ? active.teams[team] : (team === 0 ? 'Red' : 'Blue');
   }
 
   function word(key, fallback) {

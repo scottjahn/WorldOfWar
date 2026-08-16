@@ -9,6 +9,11 @@
   --dim: #8b9aab;
   --blue: #4aa3ff;
   --red: #ff5f4a;
+  /* Side colours, kept separate from the palette above because --blue is also
+   * the general UI accent. Team A holds the west edge, team B the east; these
+   * must match the TEAM table in js/render.js. */
+  --team-a: var(--red);
+  --team-b: var(--blue);
   --gold: #ffc861;
   --green: #6bd98a;
   --radius: 10px;
@@ -102,8 +107,8 @@ html, body {
   background: rgba(20,27,36,0.75);
 }
 .army-tally.active { border-color: currentColor; }
-.army-tally.team-a { color: var(--blue); }
-.army-tally.team-b { color: var(--red); }
+.army-tally.team-a { color: var(--team-a); }
+.army-tally.team-b { color: var(--team-b); }
 .tally-name { font-size: 10px; letter-spacing: 0.12em; font-weight: 700; }
 .tally-cost { font-size: 17px; font-weight: 700; color: var(--text); line-height: 1.1; font-variant-numeric: tabular-nums; }
 .tally-sub { font-size: 10px; color: var(--dim); }
@@ -337,14 +342,14 @@ html, body {
   font-size: 30px;
   letter-spacing: 0.02em;
   margin-bottom: 4px;
-  background: linear-gradient(90deg, var(--blue), var(--red));
+  background: linear-gradient(90deg, var(--team-a), var(--team-b));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
 }
 .panel h2 { font-size: 24px; margin-bottom: 4px; }
-.panel h2.win-blue { color: var(--blue); }
-.panel h2.win-red { color: var(--red); }
+.panel h2.win-a { color: var(--team-a); }
+.panel h2.win-b { color: var(--team-b); }
 .panel h2.win-draw { color: var(--dim); }
 
 .lede { color: var(--dim); margin-bottom: 18px; }
@@ -465,8 +470,8 @@ html, body {
 .result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 8px; }
 .result-col { background: var(--panel-2); border: 1px solid var(--line); border-radius: 9px; padding: 12px 14px; }
 .result-team { font-weight: 700; letter-spacing: 0.1em; font-size: 11px; margin-bottom: 8px; }
-.result-team.blue { color: var(--blue); }
-.result-team.red { color: var(--red); }
+.result-team.team-a { color: var(--team-a); }
+.result-team.team-b { color: var(--team-b); }
 .result-row { display: flex; justify-content: space-between; font-size: 12.5px; padding: 3px 0; border-bottom: 1px dotted #26313d; }
 .result-row span { color: var(--dim); }
 .result-row strong { font-variant-numeric: tabular-nums; }

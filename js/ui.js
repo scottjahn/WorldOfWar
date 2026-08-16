@@ -9,6 +9,9 @@
   const U = W.Util;
   const Units = W.Units;
 
+  /* Tab captions when the edition does not override them. */
+  const DEFAULT_TABS = { land: 'Land', air: 'Air', sea: 'Sea' };
+
   function UI(game) {
     this.game = game;
     this.dom = {
@@ -204,10 +207,15 @@
     const buckets = ['land', 'air', 'sea'].filter(function (b) {
       return Units.ORDER[b].some(function (id) { return allowed.indexOf(id) >= 0; });
     });
+    /* An edition can rename the shelves it uses — Space fields no aircraft and no
+     * navy, so its one tab reads "Fleet" rather than "Land". */
+    const ed = W.Editions.current();
+    const names = (ed && ed.bucketNames) || {};
     const tabs = this.dom.roster.querySelectorAll('.tab');
     for (let i = 0; i < tabs.length; i++) {
       const d = tabs[i].getAttribute('data-domain');
       tabs[i].classList.toggle('hidden', buckets.indexOf(d) === -1);
+      tabs[i].textContent = names[d] || DEFAULT_TABS[d];
     }
     this.dom.roster.querySelector('.roster-tabs').style.gridTemplateColumns =
       'repeat(' + Math.max(1, buckets.length) + ', 1fr)';
@@ -266,14 +274,23 @@
       return;
     }
     const t = Units.TYPES[id];
+    const ed = W.Editions.current();
+    /* With one domain the "Domain" row would read the same on every card, so the
+     * slot goes to the thing that actually varies — what kind of hull it is. */
+    const single = !!(ed && ed.singleDomain);
     const domainName = t.domain === Units.AIR ? 'Air' : t.domain === Units.SEA ? 'Sea' : 'Land';
+    const classOf = function (u) {
+      const tags = u.tags || [];
+      return tags.indexOf('fighter') >= 0 ? 'Small craft'
+        : tags.indexOf('capital') >= 0 ? 'Warship' : '—';
+    };
 
     let html = '';
     html += '<div class="detail-head"><span class="detail-name">' + esc(t.name) + '</span>';
     html += '<span class="detail-cost">' + U.formatCost(t.cost) + '</span></div>';
     html += '<div class="detail-desc">' + esc(t.desc) + '</div>';
     html += '<div class="stat-grid">';
-    html += stat('Domain', domainName);
+    html += single ? stat('Class', classOf(t)) : stat('Domain', domainName);
     html += stat('Hull', Math.round(t.hp));
     html += stat('Armour', t.armor);
     html += stat('Speed', t.move === 'static' ? 'Immobile' : Math.round(t.speed));
@@ -293,7 +310,20 @@
         html += '<div class="weapon-line">' + Math.round(w.dmg) + ' dmg · ' + w.pen + ' pen · ' + Math.round(dps) + ' dps</div>';
         html += '<div class="weapon-line">Range ' + w.range + (w.minRange ? ' (min ' + w.minRange + ')' : '') +
           (w.splash ? ' · splash ' + w.splash : '') + '</div>';
-        html += '<div class="weapon-line targets">Engages: ' + (targets.join(' · ') || 'None') + '</div>';
+        if (single) {
+          /* Everything can shoot at everything out here, so what matters is what
+           * the mount was aimed at when it was bolted on — and, for ordnance
+           * that will not arm against the wrong target at all, what it refuses. */
+          if (w.onlyTag) {
+            html += '<div class="weapon-line targets">Only engages ' +
+              tagWord(w.onlyTag) + '</div>';
+          } else if (w.prefersTag) {
+            html += '<div class="weapon-line targets">Trained on ' +
+              tagWord(w.prefersTag) + '</div>';
+          }
+        } else {
+          html += '<div class="weapon-line targets">Engages: ' + (targets.join(' · ') || 'None') + '</div>';
+        }
       }
       html += '</div>';
     });
@@ -301,10 +331,25 @@
     if (t.stealth) html += '<div class="trait">Submerged — only sonar-equipped units can see it.</div>';
     if (t.asw) html += '<div class="trait">Sonar — can detect submarines.</div>';
     if (t.move === 'static') html += '<div class="trait">Cannot move once deployed.</div>';
-    if (t.move === 'fixedwing') html += '<div class="trait">Fixed-wing — cannot slow down or hover.</div>';
+    if (t.move === 'fixedwing') {
+      html += '<div class="trait">' + (single
+        ? 'Attack runs — never holds station. It makes a pass, breaks off and comes round again.'
+        : 'Fixed-wing — cannot slow down or hover.') + '</div>';
+    }
+    if (t.squadron) {
+      const carried = Units.TYPES[t.squadron.type];
+      if (carried) {
+        html += '<div class="trait">Carries ' + t.squadron.count + ' × ' + esc(carried.name) +
+          ', with ' + t.squadron.reserve + ' in reserve.</div>';
+      }
+    }
 
     box.innerHTML = html;
   };
+
+  function tagWord(tag) {
+    return tag === 'fighter' ? 'small craft' : tag === 'capital' ? 'warships' : tag;
+  }
 
   function stat(label, value) {
     return '<div class="stat"><span class="stat-label">' + label + '</span><span class="stat-value">' + value + '</span></div>';
@@ -323,8 +368,8 @@
     const d = this.dom;
     const ed = W.Editions.current();
 
-    /* Side names come from the edition — "PETS" and "WILD", not "BLUE" and "RED". */
-    const short = (ed && ed.teamsShort) || ['BLUE', 'RED'];
+    /* Side names come from the edition — "PETS" and "WILD", not "RED" and "BLUE". */
+    const short = (ed && ed.teamsShort) || ['RED', 'BLUE'];
     d.tallyA.querySelector('.tally-name').textContent = short[0];
     d.tallyB.querySelector('.tally-name').textContent = short[1];
 

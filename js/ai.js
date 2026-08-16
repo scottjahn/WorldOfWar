@@ -52,6 +52,58 @@
     }
   ];
 
+  const SPACE_DOCTRINES = [
+    {
+      name: 'Starfighter Corps', faction: 0,
+      picks: [['xwing', 3], ['awing', 2.4], ['z95', 2.6], ['ywing', 1.8], ['bwing', 1.2]]
+    },
+    {
+      /* Bombers cannot arm their racks against small craft, so a wing without a
+       * real escort simply gets eaten. The escort weights here are load-bearing. */
+      name: 'Torpedo Strike', faction: 0,
+      picks: [['ywing', 2.6], ['bwing', 2.0], ['awing', 2.4], ['xwing', 2.2],
+        ['mc30', 1.0], ['gr75', 0.5]]
+    },
+    {
+      name: 'Battle Line', faction: 0,
+      picks: [['mc80', 1.2], ['nebulonb', 1.6], ['cr90', 2.0], ['mc30', 1.2],
+        ['xwing', 1.4], ['gr75', 0.6]]
+    },
+    {
+      name: 'Blockade Runners', faction: 0,
+      picks: [['cr90', 2.6], ['yt1300', 2.2], ['awing', 2.0], ['z95', 1.6], ['xwing', 1.4]]
+    },
+    {
+      /* Anchors on the immobile guns, so it needs hulls that can go and finish it. */
+      name: 'Fixed Defence', faction: 0,
+      picks: [['ionplatform', 1.6], ['cr90', 1.6], ['xwing', 2.0], ['ywing', 1.4],
+        ['nebulonb', 0.9], ['gr75', 0.6]]
+    },
+    {
+      name: 'TIE Swarm', faction: 1,
+      picks: [['tie', 4], ['tieint', 2.4], ['tiebomber', 1.6], ['gozanti', 1.0]]
+    },
+    {
+      name: 'Bomber Wing', faction: 1,
+      picks: [['tiebomber', 2.8], ['gunboat', 2.2], ['tieint', 2.0], ['tie', 2.0],
+        ['shuttle', 0.5]]
+    },
+    {
+      name: 'Line of Battle', faction: 1,
+      picks: [['isd', 1.1], ['victory', 1.6], ['arquitens', 1.8], ['raider', 1.4],
+        ['tie', 1.6], ['shuttle', 0.5]]
+    },
+    {
+      name: 'Elite Squadrons', faction: 1,
+      picks: [['tiedef', 2.4], ['gunboat', 2.0], ['tieint', 1.8], ['raider', 1.2], ['tie', 1.2]]
+    },
+    {
+      name: 'Static Cordon', faction: 1,
+      picks: [['golan', 1.6], ['arquitens', 1.6], ['raider', 1.4], ['tie', 2.2],
+        ['tiebomber', 1.4], ['victory', 0.9]]
+    }
+  ];
+
   const EARTH_DOCTRINES = [
     {
       name: 'Combined Arms',
@@ -106,14 +158,23 @@
     housecat: 0.6, ferret: 0.6, rabbit: 0.55, hamster: 0.5,
     pigeon: 0.5, budgie: 0.45, parrot: 0.4,
     rhino: 0.82, bear: 0.8, crocodile: 0.84, boar: 0.76, lion: 0.7,
-    wolf: 0.66, hyena: 0.6, lynx: 0.56, cheetah: 0.5, eagle: 0.4, vulture: 0.45
+    wolf: 0.66, hyena: 0.6, lynx: 0.56, cheetah: 0.5, eagle: 0.4, vulture: 0.45,
+    /* Space: the capitals form the line, the fighter screen launches from behind
+     * it, and the immobile guns and the tender sit at the very back. */
+    ionplatform: 0.12, golan: 0.12, gr75: 0.18, shuttle: 0.18,
+    isd: 0.5, mc80: 0.5, victory: 0.55, nebulonb: 0.5, mc30: 0.45,
+    arquitens: 0.62, cr90: 0.68, raider: 0.68, gozanti: 0.55,
+    ywing: 0.75, bwing: 0.75, tiebomber: 0.75, gunboat: 0.78,
+    xwing: 0.82, tie: 0.85, tieint: 0.88, tiedef: 0.85, awing: 0.9, z95: 0.85,
+    yt1300: 0.85
   };
 
   /* The doctrine pool for the active edition. */
   let DOCTRINES = EARTH_DOCTRINES;
 
   function setEdition(ed) {
-    DOCTRINES = ed.id === 'animals' ? ANIMAL_DOCTRINES : EARTH_DOCTRINES;
+    DOCTRINES = ed.id === 'animals' ? ANIMAL_DOCTRINES
+      : ed.id === 'space' ? SPACE_DOCTRINES : EARTH_DOCTRINES;
   }
 
   function domainOf(id) { return T[id].domain; }
@@ -203,7 +264,14 @@
       if (dm === Units.LAND) return landFrac > 0.05;
       return true;
     });
-    if (!picks.length) picks = [['drone', 1], ['gunship', 1], ['fighter', 1]];
+    /* Nothing in any doctrine can deploy on this map. Fall back to whatever this
+     * side is allowed to buy at all, so the army is never empty — naming Earth
+     * unit ids here would throw in any other edition. */
+    if (!picks.length) {
+      picks = (W.Editions ? W.Editions.rosterFor(team) : Object.keys(T))
+        .filter(function (id) { return T[id] && !T[id].hidden && T[id].cost > 0; })
+        .map(function (id) { return [id, 1]; });
+    }
 
     const army = [];
     let spent = 0;

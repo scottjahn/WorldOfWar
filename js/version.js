@@ -8,8 +8,8 @@
  * screen stops meaning anything.
  */
 (function (root) {
-  /* Major version tracks editions: 2.x ships Earth + Animals. Each new edition
-   * bumps the major number. */
-  root.WOW_VERSION = '2.0.4';
+  /* Major version tracks editions: 3.x ships Earth + Animals + Space. Each new
+   * edition bumps the major number. */
+  root.WOW_VERSION = '3.0.1';
   root.WOW_BUILD = '2026-08-15';
 })(typeof self !== 'undefined' ? self : this);
