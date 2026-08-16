@@ -1262,6 +1262,20 @@
       case 'beast': drawBeast(ctx, r, body, dark, light); break;
       case 'bird': drawBird(ctx, r, body, dark, light, live); break;
       case 'shelled': drawShelled(ctx, r, body, dark, light); break;
+      case 'theropod': drawTheropod(ctx, r, body, dark, light, false); break;
+      case 'sailback': drawTheropod(ctx, r, body, dark, light, true); break;
+      case 'sauropod': drawSauropod(ctx, r, body, dark, light); break;
+      case 'ceratopsian': drawCeratopsian(ctx, r, body, dark, light); break;
+      case 'stegosaur': drawStegosaur(ctx, r, body, dark, light); break;
+      case 'ankylosaur': drawAnkylosaur(ctx, r, body, dark, light); break;
+      case 'pterosaur': drawPterosaur(ctx, r, body, dark, light, live); break;
+      case 'dragonfly': drawDragonfly(ctx, r, body, dark, light, live); break;
+      case 'plesiosaur': drawPlesiosaur(ctx, r, body, dark, light); break;
+      case 'mosasaur': drawMosasaur(ctx, r, body, dark, light); break;
+      case 'shark': drawShark(ctx, r, body, dark, light); break;
+      case 'fish': drawFish(ctx, r, body, dark, light, false); break;
+      case 'armourfish': drawFish(ctx, r, body, dark, light, true); break;
+      case 'ammonite': drawAmmonite(ctx, r, body, dark, light); break;
       case 'snub': drawSnub(ctx, r, body, dark, light); break;
       case 'awing': drawAwing(ctx, r, body, dark, light); break;
       case 'xwing': drawXwing(ctx, r, body, dark, light); break;
@@ -1414,6 +1428,425 @@
       ctx.lineTo(Math.cos(a) * r * 0.8, Math.sin(a) * r * 0.62);
       ctx.stroke();
     }
+  }
+
+  /* ---------------------- prehistoric shapes ---------------------- */
+  /* Nose-right and symmetric about the centreline, same as the animals above.
+   * Nothing here reaches past about 1.7r: the roster icon is drawn at 0.26 of
+   * the card, so a longer tail or beak than that gets clipped in the shop list. */
+
+  /* Bipedal predators — Compsognathus up to a Tyrannosaur, and with `sail` the
+   * Spinosaurus, whose spines read from above as a ridge down the spine. */
+  function drawTheropod(ctx, r, body, dark, light, sail) {
+    ctx.fillStyle = dark;                                    // tail
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.3, -r * 0.3);
+    ctx.quadraticCurveTo(-r * 1.1, -r * 0.26, -r * 1.62, 0);
+    ctx.quadraticCurveTo(-r * 1.1, r * 0.26, -r * 0.3, r * 0.3);
+    ctx.closePath(); ctx.fill();
+
+    ctx.strokeStyle = dark; ctx.lineCap = 'round';           // hind legs
+    ctx.lineWidth = r * 0.22;
+    for (let i = -1; i <= 1; i += 2) {
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.15, i * r * 0.3);
+      ctx.quadraticCurveTo(r * 0.05, i * r * 0.74, r * 0.44, i * r * 0.64);
+      ctx.stroke();
+    }
+    ctx.lineWidth = r * 0.11;                                // forelimbs
+    for (let i = -1; i <= 1; i += 2) {
+      ctx.beginPath();
+      ctx.moveTo(r * 0.4, i * r * 0.2);
+      ctx.lineTo(r * 0.74, i * r * 0.36);
+      ctx.stroke();
+    }
+
+    ctx.fillStyle = body;                                    // body
+    ctx.beginPath(); ctx.ellipse(-r * 0.05, 0, r * 0.74, r * 0.44, 0, 0, U.TAU); ctx.fill();
+
+    if (sail) {
+      /* Deliberately taller than the body it sits on: kept inside the outline it
+       * only reads as a stripe, and the sail is the whole point of the animal. */
+      ctx.fillStyle = light;
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.8, 0);
+      ctx.quadraticCurveTo(-r * 0.1, -r * 0.78, r * 0.55, -r * 0.05);
+      ctx.quadraticCurveTo(-r * 0.1, -r * 0.2, -r * 0.8, 0);
+      ctx.closePath(); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.8, 0);
+      ctx.quadraticCurveTo(-r * 0.1, r * 0.78, r * 0.55, r * 0.05);
+      ctx.quadraticCurveTo(-r * 0.1, r * 0.2, -r * 0.8, 0);
+      ctx.closePath(); ctx.fill();
+    }
+
+    ctx.fillStyle = body;                                    // neck
+    ctx.beginPath();
+    ctx.moveTo(r * 0.5, -r * 0.28); ctx.lineTo(r * 1.0, -r * 0.18);
+    ctx.lineTo(r * 1.0, r * 0.18); ctx.lineTo(r * 0.5, r * 0.28);
+    ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(r * 1.14, 0, r * 0.36, r * 0.22, 0, 0, U.TAU); ctx.fill();
+
+    ctx.fillStyle = light;                                   // jaws
+    ctx.beginPath();
+    ctx.moveTo(r * 1.16, -r * 0.17); ctx.lineTo(r * 1.66, 0);
+    ctx.lineTo(r * 1.16, r * 0.17); ctx.closePath(); ctx.fill();
+  }
+
+  function drawSauropod(ctx, r, body, dark, light) {
+    ctx.strokeStyle = dark; ctx.lineCap = 'round';
+    ctx.lineWidth = r * 0.19;                                // tail
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.6, 0);
+    ctx.quadraticCurveTo(-r * 1.2, r * 0.2, -r * 1.66, r * 0.02);
+    ctx.stroke();
+    ctx.lineWidth = r * 0.26;                                // four column legs
+    for (let i = -1; i <= 1; i += 2) {
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.42, i * r * 0.36); ctx.lineTo(-r * 0.58, i * r * 0.8);
+      ctx.moveTo(r * 0.22, i * r * 0.36); ctx.lineTo(r * 0.36, i * r * 0.82);
+      ctx.stroke();
+    }
+    ctx.fillStyle = dark;                                    // bulk
+    ctx.beginPath(); ctx.ellipse(-r * 0.12, 0, r * 0.95, r * 0.58, 0, 0, U.TAU); ctx.fill();
+    ctx.fillStyle = body;
+    ctx.beginPath(); ctx.ellipse(-r * 0.15, 0, r * 0.8, r * 0.44, 0, 0, U.TAU); ctx.fill();
+
+    ctx.strokeStyle = body; ctx.lineWidth = r * 0.26;        // neck
+    ctx.beginPath();
+    ctx.moveTo(r * 0.5, 0);
+    ctx.quadraticCurveTo(r * 1.05, -r * 0.14, r * 1.44, -r * 0.06);
+    ctx.stroke();
+    ctx.fillStyle = light;                                   // small head
+    ctx.beginPath(); ctx.ellipse(r * 1.56, -r * 0.05, r * 0.17, r * 0.12, 0, 0, U.TAU); ctx.fill();
+  }
+
+  function drawCeratopsian(ctx, r, body, dark, light) {
+    ctx.strokeStyle = dark; ctx.lineCap = 'round';           // legs
+    ctx.lineWidth = r * 0.24;
+    for (let i = -1; i <= 1; i += 2) {
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.5, i * r * 0.34); ctx.lineTo(-r * 0.68, i * r * 0.76);
+      ctx.moveTo(r * 0.16, i * r * 0.36); ctx.lineTo(r * 0.3, i * r * 0.8);
+      ctx.stroke();
+    }
+    ctx.fillStyle = dark;                                    // tail
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.7, -r * 0.24); ctx.lineTo(-r * 1.4, 0);
+    ctx.lineTo(-r * 0.7, r * 0.24); ctx.closePath(); ctx.fill();
+
+    ctx.fillStyle = dark;                                    // body
+    ctx.beginPath(); ctx.ellipse(-r * 0.24, 0, r * 0.86, r * 0.56, 0, 0, U.TAU); ctx.fill();
+    ctx.fillStyle = body;
+    ctx.beginPath(); ctx.ellipse(-r * 0.28, 0, r * 0.7, r * 0.42, 0, 0, U.TAU); ctx.fill();
+
+    ctx.fillStyle = dark;                                    // frill
+    ctx.beginPath(); ctx.arc(r * 0.5, 0, r * 0.72, -2.1, 2.1); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = body;
+    ctx.beginPath(); ctx.arc(r * 0.5, 0, r * 0.56, -2.1, 2.1); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = dark;                                    // head, over the frill
+    ctx.beginPath(); ctx.ellipse(r * 0.86, 0, r * 0.44, r * 0.3, 0, 0, U.TAU); ctx.fill();
+
+    ctx.fillStyle = light;                                   // brow horns and nose horn
+    for (let i = -1; i <= 1; i += 2) {
+      ctx.beginPath();
+      ctx.moveTo(r * 0.95, i * r * 0.3); ctx.lineTo(r * 1.62, i * r * 0.34);
+      ctx.lineTo(r * 1.0, i * r * 0.08); ctx.closePath(); ctx.fill();
+    }
+    ctx.beginPath();
+    ctx.moveTo(r * 1.2, -r * 0.12); ctx.lineTo(r * 1.44, 0);
+    ctx.lineTo(r * 1.2, r * 0.12); ctx.closePath(); ctx.fill();
+  }
+
+  function drawStegosaur(ctx, r, body, dark, light) {
+    ctx.strokeStyle = dark; ctx.lineCap = 'round';           // legs
+    ctx.lineWidth = r * 0.2;
+    for (let i = -1; i <= 1; i += 2) {
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.42, i * r * 0.32); ctx.lineTo(-r * 0.58, i * r * 0.72);
+      ctx.moveTo(r * 0.3, i * r * 0.3); ctx.lineTo(r * 0.44, i * r * 0.7);
+      ctx.stroke();
+    }
+    ctx.fillStyle = dark;                                    // tail
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.6, -r * 0.22);
+    ctx.lineTo(-r * 1.4, -r * 0.06); ctx.lineTo(-r * 1.4, r * 0.06);
+    ctx.lineTo(-r * 0.6, r * 0.22); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = light; ctx.lineWidth = Math.max(1, r * 0.09);   // thagomizer
+    for (let i = -1; i <= 1; i += 2) {
+      ctx.beginPath();
+      ctx.moveTo(-r * 1.2, i * r * 0.06); ctx.lineTo(-r * 1.62, i * r * 0.34);
+      ctx.moveTo(-r * 1.32, i * r * 0.04); ctx.lineTo(-r * 1.66, i * r * 0.1);
+      ctx.stroke();
+    }
+
+    ctx.fillStyle = body;                                    // body, high at the hips
+    ctx.beginPath(); ctx.ellipse(-r * 0.14, 0, r * 0.82, r * 0.46, 0, 0, U.TAU); ctx.fill();
+    ctx.fillStyle = dark;                                    // two rows of back plates
+    for (let k = 0; k < 4; k++) {
+      const px = -r * 0.62 + k * r * 0.38;
+      const h = r * (0.34 + (k === 1 || k === 2 ? 0.16 : 0));
+      for (let i = -1; i <= 1; i += 2) {
+        ctx.beginPath();
+        ctx.moveTo(px - r * 0.13, i * r * 0.1);
+        ctx.lineTo(px, i * h);
+        ctx.lineTo(px + r * 0.13, i * r * 0.1);
+        ctx.closePath(); ctx.fill();
+      }
+    }
+    ctx.fillStyle = body;                                    // small head on a low neck
+    ctx.beginPath(); ctx.ellipse(r * 0.86, 0, r * 0.3, r * 0.2, 0, 0, U.TAU); ctx.fill();
+    ctx.fillStyle = light;
+    ctx.beginPath(); ctx.ellipse(r * 1.12, 0, r * 0.16, r * 0.12, 0, 0, U.TAU); ctx.fill();
+  }
+
+  function drawAnkylosaur(ctx, r, body, dark, light) {
+    ctx.strokeStyle = dark; ctx.lineCap = 'round';           // stubby legs
+    ctx.lineWidth = r * 0.2;
+    for (let i = -1; i <= 1; i += 2) {
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.4, i * r * 0.5); ctx.lineTo(-r * 0.56, i * r * 0.82);
+      ctx.moveTo(r * 0.3, i * r * 0.5); ctx.lineTo(r * 0.46, i * r * 0.82);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = dark; ctx.lineWidth = r * 0.22;        // tail into the club
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.7, 0); ctx.lineTo(-r * 1.3, 0);
+    ctx.stroke();
+    ctx.fillStyle = light;
+    ctx.beginPath(); ctx.arc(-r * 1.45, 0, r * 0.26, 0, U.TAU); ctx.fill();
+
+    ctx.fillStyle = dark;                                    // armoured shell
+    ctx.beginPath(); ctx.ellipse(-r * 0.05, 0, r * 0.95, r * 0.68, 0, 0, U.TAU); ctx.fill();
+    ctx.fillStyle = body;
+    ctx.beginPath(); ctx.ellipse(-r * 0.05, 0, r * 0.8, r * 0.54, 0, 0, U.TAU); ctx.fill();
+    ctx.fillStyle = dark;                                    // scute rows
+    for (let k = -1; k <= 1; k++) {
+      for (let j = -1; j <= 1; j += 2) {
+        ctx.beginPath();
+        ctx.arc(k * r * 0.38, j * r * 0.28, r * 0.11, 0, U.TAU); ctx.fill();
+      }
+    }
+    ctx.fillStyle = light;                                   // flank spikes
+    for (let i = -1; i <= 1; i += 2) {
+      for (let k = -1; k <= 1; k += 2) {
+        ctx.beginPath();
+        ctx.moveTo(k * r * 0.42 - r * 0.14, i * r * 0.6);
+        ctx.lineTo(k * r * 0.42, i * r * 0.92);
+        ctx.lineTo(k * r * 0.42 + r * 0.14, i * r * 0.6);
+        ctx.closePath(); ctx.fill();
+      }
+    }
+    ctx.fillStyle = body;                                    // broad low head
+    ctx.beginPath(); ctx.ellipse(r * 1.0, 0, r * 0.34, r * 0.32, 0, 0, U.TAU); ctx.fill();
+    ctx.fillStyle = light;
+    ctx.beginPath(); ctx.ellipse(r * 1.24, 0, r * 0.14, r * 0.16, 0, 0, U.TAU); ctx.fill();
+  }
+
+  function drawPterosaur(ctx, r, body, dark, light, live) {
+    /* Wings sweep through the beat; without a live unit (icon) they sit spread. */
+    const beat = live ? Math.sin(live.rotor * 0.5) : 0.3;
+    const span = r * (1.2 + beat * 0.3);
+    ctx.fillStyle = dark;
+    for (let i = -1; i <= 1; i += 2) {
+      ctx.beginPath();
+      ctx.moveTo(r * 0.2, i * r * 0.1);
+      ctx.quadraticCurveTo(r * 0.6, i * span * 0.5, r * 0.05, i * span);
+      ctx.quadraticCurveTo(-r * 0.3, i * span * 0.55, -r * 0.6, i * r * 0.12);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.fillStyle = dark;                                    // short tail
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.5, -r * 0.16); ctx.lineTo(-r * 1.05, 0);
+    ctx.lineTo(-r * 0.5, r * 0.16); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = body;                                    // body
+    ctx.beginPath(); ctx.ellipse(-r * 0.02, 0, r * 0.6, r * 0.24, 0, 0, U.TAU); ctx.fill();
+    ctx.fillStyle = dark;                                    // head crest, swept back
+    ctx.beginPath();
+    ctx.moveTo(r * 0.66, -r * 0.08); ctx.lineTo(r * 0.42, -r * 0.4);
+    ctx.lineTo(r * 0.84, -r * 0.12); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = body;                                    // skull
+    ctx.beginPath(); ctx.ellipse(r * 0.74, 0, r * 0.26, r * 0.17, 0, 0, U.TAU); ctx.fill();
+    ctx.fillStyle = light;                                   // long beak
+    ctx.beginPath();
+    ctx.moveTo(r * 0.8, -r * 0.13); ctx.lineTo(r * 1.58, 0);
+    ctx.lineTo(r * 0.8, r * 0.13); ctx.closePath(); ctx.fill();
+  }
+
+  function drawDragonfly(ctx, r, body, dark, light, live) {
+    const beat = live ? Math.sin(live.rotor * 1.1) : 0.4;
+    const span = r * (0.95 + beat * 0.25);
+    ctx.fillStyle = dark;                                    // two wing pairs
+    ctx.globalAlpha = 0.75;
+    for (let i = -1; i <= 1; i += 2) {
+      for (let k = 0; k < 2; k++) {
+        const cx = k === 0 ? r * 0.34 : -r * 0.06;
+        ctx.beginPath();
+        ctx.ellipse(cx, i * span * 0.6, r * 0.24, span * 0.62, i * 0.35, 0, U.TAU);
+        ctx.fill();
+      }
+    }
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = body;                                    // long abdomen
+    ctx.beginPath(); ctx.ellipse(-r * 0.5, 0, r * 0.95, r * 0.14, 0, 0, U.TAU); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(r * 0.28, 0, r * 0.4, r * 0.22, 0, 0, U.TAU); ctx.fill();
+    ctx.fillStyle = light;                                   // compound eyes
+    ctx.beginPath(); ctx.arc(r * 0.78, 0, r * 0.24, 0, U.TAU); ctx.fill();
+    ctx.fillStyle = dark;
+    ctx.beginPath(); ctx.arc(r * 0.9, -r * 0.1, r * 0.08, 0, U.TAU); ctx.fill();
+    ctx.beginPath(); ctx.arc(r * 0.9, r * 0.1, r * 0.08, 0, U.TAU); ctx.fill();
+  }
+
+  /* ---- marine reptiles and fish ---- */
+
+  /* Paddle flippers, shared by the plesiosaur and the mosasaur. */
+  function drawFlippers(ctx, r, dark, frontX, backX, len) {
+    ctx.fillStyle = dark;
+    for (let i = -1; i <= 1; i += 2) {
+      ctx.beginPath();
+      ctx.ellipse(frontX, i * r * len * 0.62, r * len, r * 0.16, i * 0.7, 0, U.TAU);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(backX, i * r * len * 0.58, r * len * 0.85, r * 0.14, -i * 0.7, 0, U.TAU);
+      ctx.fill();
+    }
+  }
+
+  function drawPlesiosaur(ctx, r, body, dark, light) {
+    drawFlippers(ctx, r, dark, r * 0.1, -r * 0.55, 0.5);
+    ctx.fillStyle = dark;                                    // short tail
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.7, -r * 0.2); ctx.lineTo(-r * 1.3, 0);
+    ctx.lineTo(-r * 0.7, r * 0.2); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = body;                                    // barrel body
+    ctx.beginPath(); ctx.ellipse(-r * 0.24, 0, r * 0.7, r * 0.4, 0, 0, U.TAU); ctx.fill();
+    ctx.strokeStyle = body; ctx.lineCap = 'round';           // the neck, which is the unit
+    ctx.lineWidth = r * 0.2;
+    ctx.beginPath();
+    ctx.moveTo(r * 0.3, 0);
+    ctx.quadraticCurveTo(r * 0.95, -r * 0.22, r * 1.42, -r * 0.06);
+    ctx.stroke();
+    ctx.fillStyle = light;                                   // small head
+    ctx.beginPath(); ctx.ellipse(r * 1.54, -r * 0.04, r * 0.2, r * 0.13, 0.1, 0, U.TAU); ctx.fill();
+  }
+
+  function drawMosasaur(ctx, r, body, dark, light) {
+    ctx.fillStyle = dark;                                    // tail into a fluke
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.6, -r * 0.26);
+    ctx.quadraticCurveTo(-r * 1.2, -r * 0.14, -r * 1.35, 0);
+    ctx.quadraticCurveTo(-r * 1.2, r * 0.14, -r * 0.6, r * 0.26);
+    ctx.closePath(); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(-r * 1.2, 0); ctx.lineTo(-r * 1.66, -r * 0.5);
+    ctx.lineTo(-r * 1.5, 0); ctx.lineTo(-r * 1.66, r * 0.42);
+    ctx.closePath(); ctx.fill();
+    drawFlippers(ctx, r, dark, r * 0.24, -r * 0.35, 0.42);
+    ctx.fillStyle = body;                                    // long body
+    ctx.beginPath(); ctx.ellipse(-r * 0.1, 0, r * 0.95, r * 0.36, 0, 0, U.TAU); ctx.fill();
+    ctx.fillStyle = dark;                                    // dorsal ridge
+    ctx.beginPath(); ctx.ellipse(-r * 0.1, 0, r * 0.7, r * 0.09, 0, 0, U.TAU); ctx.fill();
+    ctx.fillStyle = body;                                    // skull
+    ctx.beginPath(); ctx.ellipse(r * 1.02, 0, r * 0.36, r * 0.26, 0, 0, U.TAU); ctx.fill();
+    ctx.fillStyle = light;                                   // jaws
+    ctx.beginPath();
+    ctx.moveTo(r * 1.05, -r * 0.2); ctx.lineTo(r * 1.64, -r * 0.02);
+    ctx.lineTo(r * 1.64, r * 0.02); ctx.lineTo(r * 1.05, r * 0.2);
+    ctx.closePath(); ctx.fill();
+  }
+
+  function drawShark(ctx, r, body, dark, light) {
+    ctx.fillStyle = dark;                                    // crescent tail
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.9, 0); ctx.lineTo(-r * 1.62, -r * 0.62);
+    ctx.quadraticCurveTo(-r * 1.3, 0, -r * 1.62, r * 0.52);
+    ctx.closePath(); ctx.fill();
+    for (let i = -1; i <= 1; i += 2) {                       // pectoral fins
+      ctx.beginPath();
+      ctx.moveTo(r * 0.2, i * r * 0.22);
+      ctx.lineTo(-r * 0.1, i * r * 0.92);
+      ctx.lineTo(-r * 0.35, i * r * 0.26);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.fillStyle = body;                                    // torpedo body
+    ctx.beginPath();
+    ctx.moveTo(r * 1.5, 0);
+    ctx.quadraticCurveTo(r * 0.3, -r * 0.5, -r * 0.9, -r * 0.16);
+    ctx.quadraticCurveTo(r * 0.3, r * 0.5, r * 1.5, 0);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = dark;                                    // dorsal fin
+    ctx.beginPath();
+    ctx.moveTo(r * 0.36, -r * 0.16); ctx.lineTo(-r * 0.14, 0);
+    ctx.lineTo(r * 0.36, r * 0.16); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = light;                                   // gape
+    ctx.beginPath();
+    ctx.moveTo(r * 1.5, 0); ctx.lineTo(r * 0.85, -r * 0.2);
+    ctx.lineTo(r * 0.92, 0); ctx.lineTo(r * 0.85, r * 0.2);
+    ctx.closePath(); ctx.fill();
+  }
+
+  /* Ichthyosaur, and with `plated` the armoured head of a Dunkleosteus. */
+  function drawFish(ctx, r, body, dark, light, plated) {
+    ctx.fillStyle = dark;                                    // tail fin
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.85, 0); ctx.lineTo(-r * 1.55, -r * 0.55);
+    ctx.lineTo(-r * 1.3, 0); ctx.lineTo(-r * 1.55, r * 0.55);
+    ctx.closePath(); ctx.fill();
+    for (let i = -1; i <= 1; i += 2) {                       // side fins
+      ctx.beginPath();
+      ctx.moveTo(r * 0.1, i * r * 0.2);
+      ctx.lineTo(-r * 0.2, i * r * 0.78);
+      ctx.lineTo(-r * 0.42, i * r * 0.24);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.fillStyle = body;                                    // streamlined body
+    ctx.beginPath(); ctx.ellipse(-r * 0.05, 0, r * 0.95, r * 0.38, 0, 0, U.TAU); ctx.fill();
+    ctx.fillStyle = dark;                                    // dorsal fin
+    ctx.beginPath();
+    ctx.moveTo(r * 0.1, -r * 0.14); ctx.lineTo(-r * 0.34, 0);
+    ctx.lineTo(r * 0.1, r * 0.14); ctx.closePath(); ctx.fill();
+
+    if (plated) {
+      ctx.fillStyle = light;                                 // bony head shield
+      ctx.beginPath(); ctx.ellipse(r * 0.86, 0, r * 0.5, r * 0.38, 0, 0, U.TAU); ctx.fill();
+      ctx.fillStyle = dark;                                  // shearing plates
+      ctx.beginPath();
+      ctx.moveTo(r * 1.36, -r * 0.06); ctx.lineTo(r * 0.9, -r * 0.22);
+      ctx.lineTo(r * 0.9, r * 0.22); ctx.lineTo(r * 1.36, r * 0.06);
+      ctx.closePath(); ctx.fill();
+    } else {
+      ctx.fillStyle = body;                                  // pointed snout
+      ctx.beginPath();
+      ctx.moveTo(r * 0.6, -r * 0.24); ctx.lineTo(r * 1.5, 0);
+      ctx.lineTo(r * 0.6, r * 0.24); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = light;
+      ctx.beginPath(); ctx.ellipse(r * 1.24, 0, r * 0.22, r * 0.07, 0, 0, U.TAU); ctx.fill();
+    }
+  }
+
+  function drawAmmonite(ctx, r, body, dark, light) {
+    ctx.strokeStyle = light; ctx.lineCap = 'round';          // tentacles
+    ctx.lineWidth = r * 0.12;
+    for (let i = -2; i <= 2; i++) {
+      ctx.beginPath();
+      ctx.moveTo(r * 0.7, i * r * 0.12);
+      ctx.lineTo(r * 1.3, i * r * 0.3);
+      ctx.stroke();
+    }
+    ctx.fillStyle = dark;                                    // coiled shell
+    ctx.beginPath(); ctx.arc(-r * 0.06, 0, r * 0.98, 0, U.TAU); ctx.fill();
+    ctx.fillStyle = body;
+    ctx.beginPath(); ctx.arc(-r * 0.06, 0, r * 0.82, 0, U.TAU); ctx.fill();
+    ctx.strokeStyle = dark; ctx.lineWidth = Math.max(1, r * 0.1);
+    ctx.beginPath();                                         // the spiral itself
+    for (let i = 0; i <= 48; i++) {
+      const a = (i / 48) * U.TAU * 1.75;
+      const rad = r * (0.14 + 0.68 * (i / 48));
+      const x = -r * 0.06 + Math.cos(a) * rad;
+      const y = Math.sin(a) * rad;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
   }
 
   /* ---------------------- starship shapes ---------------------- */

@@ -15,7 +15,7 @@ unit.
 | **Earth** | Modern combined arms | Infantry, armour, artillery, aircraft and a navy across land, air and sea. |
 | **Animals** | Household Pets vs Killer Animals | All melee, no navy, a smaller field — and nobody dies. |
 | **Space** | Rebel Alliance vs Imperial Navy | Starfighters and capital ships. One domain — everything flies. |
-| **Prehistoric** | *Coming soon* | |
+| **Prehistoric** | Before anyone invented the wheel | Dinosaurs, pterosaurs and marine reptiles across land, air and sea. |
 
 **Animals** is asymmetric: each side has its own roster. Household Pets are cheap, numerous
 and bite softly — a hamster can barely scratch a rhino, so a swarm needs its own heavies
@@ -45,8 +45,27 @@ against a capital ship; their warships are thinner and rely on speed.
 Maps carry planets, asteroid belts, nebulae and drifting hulks. Nebula gas drags a hull down
 to 60% speed, dust and debris to 90%, and nothing at all flies through a planet.
 
-The major version tracks editions — 3.x ships Earth, Animals and Space, and each new edition
-bumps it again.
+**Prehistoric** goes back to Earth's shape — three domains, and both sides buying from the
+same list, so a battle is decided by composition and ground rather than by which faction you
+were handed. Almost everything is melee, which changes what the domains mean. Marine reptiles
+cannot leave the water and the herds cannot enter it, so on a map with a coast the two lists
+would simply fight past each other. Three things bridge the gap: flyers ignore terrain
+entirely, the big marine predators can take anything walking the shoreline, and Spinosaurus
+is the one land animal that fishes.
+
+Anti-air is scarce on purpose. Most of a herd cannot reach a pterosaur at all — what can is a
+leaping raptor, a sabre cat, an Allosaur or Tyrannosaur's head at three to six metres, a
+Brachiosaur's neck at twelve, and the one unit in the edition with real standoff: a
+Dilophosaurus, which spits venom nearly 200 units and is the only thing here that can hurt
+something it is not touching. Reach still varies enormously without being ranged — an
+Elasmosaurus swings a neck twice as long as anything else's bite, so it fights from the
+second rank.
+
+Nothing is killed on screen. A beaten animal breaks and runs, the same as in Animals — a
+Triceratops does not explode.
+
+The major version tracks editions — 4.x ships Earth, Animals, Space and Prehistoric, and each
+new edition bumps it again.
 
 No build step, no dependencies, no framework — plain HTML, CSS and Canvas 2D. It works on
 desktop and mobile browsers, and installs as a PWA or packages into an APK.
@@ -181,6 +200,7 @@ js/units.js           unit definition machinery and the active catalogue
 js/roster-earth.js    Earth's army list
 js/roster-animals.js  the Animals army list, split into two factions
 js/roster-space.js    the Space army list, split into two navies
+js/roster-prehistoric.js  the Prehistoric army list, shared by both herds
 js/editions.js        what each edition is: roster, maps, budgets, side names, defeat style
 js/terrain.js         map generation, passability, connectivity, A* pathfinding
 js/sim.js             the battle: targeting, movement, weapons, projectiles, damage

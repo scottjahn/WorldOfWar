@@ -104,6 +104,74 @@
     }
   ];
 
+  /* No factions here, so every doctrine is available to both herds. */
+  const PREHISTORIC_DOCTRINES = [
+    {
+      /* Small teeth cannot get through a scute, so a pack that is only quick and
+       * cheap starves against anything armoured. The Allosaurus and Pachycephalosaur
+       * weights here are the pack's tin opener. */
+      name: 'Raptor Pack',
+      picks: [['velociraptor', 3], ['compsognathus', 2.2], ['gallimimus', 1.8],
+        ['dilophosaurus', 1.6], ['smilodon', 1.8], ['allosaurus', 2.2],
+        ['pachycephalosaurus', 1.6]]
+    },
+    {
+      /* Cheap bodies out front, and enough reach behind them that it is not simply
+       * fed to whatever heavy it runs into. */
+      name: 'The Whole Nesting Ground',
+      picks: [['compsognathus', 3.2], ['gallimimus', 2.2], ['parasaurolophus', 1.8],
+        ['meganeura', 2.0], ['microraptor', 1.6], ['velociraptor', 1.8],
+        ['pachycephalosaurus', 2.0], ['allosaurus', 1.4], ['dilophosaurus', 1.2]]
+    },
+    {
+      name: 'Apex Predators',
+      picks: [['trex', 1.4], ['allosaurus', 2.0], ['spinosaurus', 1.4],
+        ['smilodon', 1.6], ['velociraptor', 1.6], ['dilophosaurus', 1.0]]
+    },
+    {
+      /* Most of a herd cannot reach a pterosaur at all, so the spitter and the
+       * long-necked sauropod are what stop this from being free food for a wing.
+       * Their weights are the difference between a hard line and a helpless one. */
+      name: 'Armoured Herd',
+      picks: [['ankylosaurus', 2.0], ['triceratops', 2.0], ['stegosaurus', 1.8],
+        ['parasaurolophus', 1.4], ['mammoth', 1.4], ['brachiosaurus', 1.4],
+        ['dilophosaurus', 2.0], ['allosaurus', 1.2]]
+    },
+    {
+      name: 'Trample',
+      picks: [['mammoth', 2.0], ['brachiosaurus', 1.6], ['triceratops', 1.8],
+        ['pachycephalosaurus', 2.0], ['parasaurolophus', 1.2], ['smilodon', 2.0],
+        ['dilophosaurus', 1.4]]
+    },
+    {
+      name: 'Sky Reptiles',
+      picks: [['pteranodon', 2.4], ['rhamphorhynchus', 2.6], ['quetzalcoatlus', 1.4],
+        ['microraptor', 2.0], ['meganeura', 1.8], ['velociraptor', 1.2],
+        ['dilophosaurus', 1.0]]
+    },
+    {
+      /* Marine reptiles cannot reach anything inland at all, so the wings here are
+       * load-bearing: without them a fleet that wins the water still has no way to
+       * touch a herd that stayed on the grass, and the clock decides it. */
+      name: 'Deep Water',
+      picks: [['mosasaurus', 1.6], ['megalodon', 1.0], ['dunkleosteus', 1.8],
+        ['elasmosaurus', 1.8], ['ichthyosaur', 2.0], ['archelon', 1.4],
+        ['ammonite', 1.4], ['pteranodon', 2.0], ['rhamphorhynchus', 1.8],
+        ['quetzalcoatlus', 0.9], ['spinosaurus', 0.9]],
+      /* A high bar on purpose. A river is not enough water to commit an army to —
+       * a fleet that cannot leave a channel 20% of the field wide spends the whole
+       * battle unable to reach anything, so this only comes out on an open sea. */
+      needsSea: 0.30
+    },
+    {
+      name: 'Shoreline',
+      picks: [['spinosaurus', 1.4], ['elasmosaurus', 1.6], ['archelon', 1.2],
+        ['ichthyosaur', 1.4], ['triceratops', 1.6], ['allosaurus', 1.6],
+        ['pteranodon', 1.4], ['parasaurolophus', 1.4], ['compsognathus', 1.6]],
+      needsSea: 0.10
+    }
+  ];
+
   const EARTH_DOCTRINES = [
     {
       name: 'Combined Arms',
@@ -166,7 +234,17 @@
     arquitens: 0.62, cr90: 0.68, raider: 0.68, gozanti: 0.55,
     ywing: 0.75, bwing: 0.75, tiebomber: 0.75, gunboat: 0.78,
     xwing: 0.82, tie: 0.85, tieint: 0.88, tiedef: 0.85, awing: 0.9, z95: 0.85,
-    yt1300: 0.85
+    yt1300: 0.85,
+    /* Prehistoric: the armoured herbivores form the front, the predators come
+     * through the gaps behind them, and the spitter stays out of reach. */
+    ankylosaurus: 0.86, stegosaurus: 0.84, triceratops: 0.8, brachiosaurus: 0.82,
+    mammoth: 0.78, parasaurolophus: 0.76, pachycephalosaurus: 0.72,
+    spinosaurus: 0.7, trex: 0.66, allosaurus: 0.64, smilodon: 0.56,
+    velociraptor: 0.54, gallimimus: 0.5, compsognathus: 0.6, dilophosaurus: 0.32,
+    quetzalcoatlus: 0.4, pteranodon: 0.42, rhamphorhynchus: 0.46,
+    microraptor: 0.5, meganeura: 0.5,
+    ammonite: 0.8, archelon: 0.76, dunkleosteus: 0.6, ichthyosaur: 0.5,
+    elasmosaurus: 0.55, mosasaurus: 0.45, megalodon: 0.4
   };
 
   /* The doctrine pool for the active edition. */
@@ -174,7 +252,8 @@
 
   function setEdition(ed) {
     DOCTRINES = ed.id === 'animals' ? ANIMAL_DOCTRINES
-      : ed.id === 'space' ? SPACE_DOCTRINES : EARTH_DOCTRINES;
+      : ed.id === 'space' ? SPACE_DOCTRINES
+        : ed.id === 'prehistoric' ? PREHISTORIC_DOCTRINES : EARTH_DOCTRINES;
   }
 
   function domainOf(id) { return T[id].domain; }

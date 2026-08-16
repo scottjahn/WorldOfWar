@@ -50,6 +50,14 @@
       'cr90', 'nebulonb', 'mc30', 'mc80', 'xwingw',
       'tie', 'tieint', 'tiebomber', 'gunboat', 'shuttle', 'golan', 'gozanti',
       'tiedef', 'raider', 'arquitens', 'victory', 'isd', 'tiew'
+    ],
+    prehistoric: [
+      'compsognathus', 'gallimimus', 'velociraptor', 'parasaurolophus', 'dilophosaurus',
+      'pachycephalosaurus', 'smilodon', 'stegosaurus', 'allosaurus', 'ankylosaurus',
+      'triceratops', 'mammoth', 'spinosaurus', 'trex', 'brachiosaurus',
+      'meganeura', 'microraptor', 'rhamphorhynchus', 'pteranodon', 'quetzalcoatlus',
+      'ammonite', 'ichthyosaur', 'archelon', 'dunkleosteus', 'elasmosaurus',
+      'mosasaurus', 'megalodon'
     ]
   };
 

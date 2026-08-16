@@ -194,6 +194,72 @@
     }
   ];
 
+  /* Prehistoric fields all three domains, so most of these carry real water —
+   * a map with none is a map where a third of the roster cannot deploy, which is
+   * a deliberate choice on one or two of them rather than the default. */
+  const PREHISTORIC_MAPS = [
+    {
+      id: 'delta', name: 'River Delta',
+      blurb: 'A warm shallow sea along the southern edge. Marine reptiles work the coast ' +
+        'while the herds decide it inland.',
+      water: function (nx, ny, n, x, noise) { return ny > 0.58 + noise(x * 0.035, 100, 3) * 0.12; },
+      forestBias: 0.08
+    },
+    {
+      id: 'floodplain', name: 'Fern Floodplain',
+      blurb: 'Open ground and scattered watering holes. Nowhere to hide from a charge, ' +
+        'and almost nowhere to swim.',
+      water: function (nx, ny, n) { return n < -0.44; },
+      forestBias: -0.05
+    },
+    {
+      id: 'crossing', name: 'The Crossing',
+      blurb: 'A river cuts the field east to west. The herds are split in two and ' +
+        'something very large is already in the water.',
+      water: function (nx, ny, n, x, noise) {
+        const centre = 0.5 + noise(x * 0.028, 200, 3) * 0.13;
+        const halfWidth = 0.09 + noise(x * 0.05, 300, 2) * 0.035;
+        return Math.abs(ny - centre) < halfWidth;
+      },
+      forestBias: 0.12
+    },
+    {
+      id: 'shallows', name: 'The Shallows',
+      blurb: 'Warm sea north and south with one sandbar between them. The herds have a ' +
+        'single strip to fight over and both flanks belong to the swimmers.',
+      /* Deliberately a bar rather than an archipelago: with no long-range weapon
+       * anywhere in this edition, scattered islands leave two melee armies looking
+       * at each other across water until the clock runs out. */
+      water: function (nx, ny, n, x, noise) {
+        const centre = 0.5 + noise(x * 0.025, 400, 3) * 0.08;
+        const halfWidth = 0.21 + noise(x * 0.04, 500, 2) * 0.05;
+        return Math.abs(ny - centre) > halfWidth;
+      }
+    },
+    {
+      id: 'forest', name: 'Horsetail Forest',
+      blurb: 'Dense cycads and fallen trunks, and not a drop of open water. Everything ' +
+        'slows down, so reach and teeth matter far more than speed.',
+      water: function () { return false; },
+      forestBias: 0.3, rockBias: -0.05
+    },
+    {
+      id: 'ashfall', name: 'Ashfall Basin',
+      blurb: 'Bare rock under two cinder cones, with a single pass between them. ' +
+        'No water, no cover, and one place the whole battle has to go through.',
+      water: function () { return false; },
+      forestBias: -0.35, rockBias: 0.2,
+      carve: function (t) {
+        const ROCK = W.Terrain.ROCK;
+        /* Kept off the centreline in y so the gap between them is the pass, and
+         * inside the middle of the field in x — the deployment strips are scrubbed
+         * of rock afterwards, which would bite a notch out of anything overlapping. */
+        t.disc(t.cols * 0.48, t.rows * 0.16, t.rows * 0.2, ROCK);
+        t.disc(t.cols * 0.54, t.rows * 0.86, t.rows * 0.18, ROCK);
+      }
+    }
+  ];
+
   const EDITIONS = [
     {
       id: 'earth',
@@ -292,9 +358,32 @@
       name: 'World of War: Prehistoric',
       short: 'Prehistoric',
       tagline: 'Before anyone invented the wheel',
-      blurb: 'Tribes, tusks and things with far too many teeth.',
+      blurb: 'Dinosaurs, pterosaurs and marine reptiles across land, air and sea. ' +
+        'Both herds field the same animals.',
       emblem: '🦕',
-      available: false
+      available: true,
+      roster: function () { return W.RosterPrehistoric; },
+      maps: PREHISTORIC_MAPS,
+      /* Between Animals and Earth. Almost everything here is melee, so a field the
+       * size of Earth's would be spent walking; smaller than this and the fast
+       * runners cross it before a slow herd has formed up at all. */
+      cols: 100, rows: 60,
+      budgets: [1000, 2000, 4000, 8000],
+      defaultBudget: 2000,
+      defaultMap: 'delta',
+      teams: ['Red Herd', 'Blue Herd'],
+      teamsShort: ['RED', 'BLUE'],
+      factions: false,           // both sides buy from the same roster
+      /* Nothing is killed on screen: a beaten animal breaks and runs, same as
+       * Animals — a Triceratops does not explode. */
+      defeat: 'flee',
+      words: {
+        wipeout: 'The rival herd broke and ran',
+        survivors: 'Held the field',
+        lost: 'Value routed',
+        remaining: 'Value left',
+        unitsLeft: 'still in'
+      }
     }
   ];
 
