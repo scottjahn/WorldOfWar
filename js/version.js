@@ -10,6 +10,6 @@
 (function (root) {
   /* Major version tracks editions: 4.x ships Earth + Animals + Space +
    * Prehistoric. Each new edition bumps the major number. */
-  root.WOW_VERSION = '4.3.0';
+  root.WOW_VERSION = '4.3.1';
   root.WOW_BUILD = '2026-09-13';
 })(typeof self !== 'undefined' ? self : this);

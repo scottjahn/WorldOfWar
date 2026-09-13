@@ -137,6 +137,14 @@ reads `???` until the battle starts. Deployments are only revealed when the shoo
 A battle ends when one side is wiped out. If 240 seconds pass, the winner is whoever has
 more surviving army value — so a stalemate across impassable water still resolves.
 
+A unit with nothing on the field it can engage holds where it is (aircraft circle in place,
+and a repair truck with nobody to patch keeps up with the nearest ally). If that is true of
+every unit on both sides — every weapon left is the wrong domain, say, or the only enemies left
+are submerged submarines and nobody has sonar — the battle is called as a stalemate at once and
+decided on surviving army value, rather than waiting out the clock. Units that could hit each
+other but cannot reach, such as armour on opposite banks of a river, are not a stalemate by
+that test; the time limit still settles those.
+
 Battles are **deterministic**. Every random choice in the simulation comes from one seeded
 generator, so the same armies, terrain and seed always play out identically, shot for shot.
 **Replay battle** reuses the seed, which makes a replay a genuine replay rather than a fresh
@@ -209,10 +217,10 @@ artillery; flak tanks and SAMs shred anything with wings; battleships beat destr
 missile corvettes trade closely with destroyers.
 
 The B-52 measures, over 24 seeded battles each at equal cost: 24/24 against heavy tanks, medium
-tanks, rifle squads, artillery, destroyers and battleships; 23/24 against flak tanks; 3/24 against SAM
-launchers and 0/24 against fighters. Against generated armies it wins a little under half —
-10/24 on its own against 5,000 points, and 10/24 at 6,000 and 12/24 at 12,000 with Auto-fill
-spending the rest of the budget.
+tanks, rifle squads, artillery, destroyers and battleships; 23/24 against flak tanks; 1/24 against SAM
+launchers and 0/24 against fighters. Against generated armies it wins 12/24 on its own against
+5,000 points, and 7/24 at 6,000 and 9/24 at 12,000 with Auto-fill spending the rest of the
+budget.
 
 Submarines gut anything without sonar — including battleships, which they out-range while
 staying invisible — and lose badly to everything with it: destroyers, patrol boats and

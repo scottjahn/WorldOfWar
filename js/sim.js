@@ -163,6 +163,7 @@
     this.pathQueue = [];
     this.startValue = [0, 0];
     this.lostValue = [0, 0];
+    this.stalemateIn = 30;       // ticks until the next stalemate check
     this.seed = (seed != null ? seed : (0x1234 ^ terrain.seed)) >>> 0;
     this.rand = U.rng(this.seed);
     /* What happens to a beaten unit — 'destroy' or 'flee'. */
@@ -483,9 +484,22 @@
         gx = u.x; gy = u.y;
       }
     } else {
-      /* No reachable enemy: drift toward the enemy side so stalemates resolve. */
-      gx = u.team === 0 ? this.terrain.width * 0.75 : this.terrain.width * 0.25;
-      gy = u.y;
+      /* Nothing on the field this unit can engage, so it holds where it is,
+       * facing the way it already faces. Wandering off toward the enemy's edge
+       * never resolved anything — and when neither side can engage the other,
+       * checkVictory calls the stalemate rather than letting the clock run. */
+      wantMove = false;
+      gx = u.x + M.cos(u.hdg) * 50;
+      gy = u.y + M.sin(u.hdg) * 50;
+      /* The exception is a support unit with nobody to patch, which keeps up
+       * with its own army rather than being left behind when the line moves. */
+      const ally = t.weapons.length && t.weapons[0].kind === 'repair' ? this.nearestAlly(u) : null;
+      if (ally && U.dist2(u.x, u.y, ally.x, ally.y) > 110 * 110) {
+        wantMove = true;
+        gx = ally.x; gy = ally.y;
+      } else {
+        u.path = null;
+      }
     }
 
     if (t.move === 'fixedwing') { this.moveFixedWing(u, dt, tgt); return; }
@@ -634,8 +648,11 @@
         aimX = tgt.x; aimY = tgt.y;
       }
     } else {
-      aimX = u.team === 0 ? this.terrain.width * 0.8 : this.terrain.width * 0.2;
-      aimY = this.terrain.height * 0.5;
+      /* Nothing it can engage. A fixed-wing aircraft cannot stop, so it circles
+       * where it is rather than flying off anywhere. */
+      const side = u.team === 0 ? 1 : -1;
+      aimX = u.x + M.cos(u.hdg + side * Math.PI / 2) * 200;
+      aimY = u.y + M.sin(u.hdg + side * Math.PI / 2) * 200;
     }
 
     /* Steer back inside the map before leaving it. */
@@ -1008,12 +1025,77 @@
         : (this.words.wipeout || 'Enemy army destroyed');
       return;
     }
-    if (this.time >= MAX_BATTLE_TIME) {
-      const va = this.remainingValue(0), vb = this.remainingValue(1);
-      this.over = true;
-      this.winner = Math.abs(va - vb) < 1 ? -1 : (va > vb ? 0 : 1);
-      this.reason = 'Time limit — decided on surviving army value';
+    /* Twice a second is plenty: a stalemate only comes about when a unit dies. */
+    if (--this.stalemateIn <= 0) {
+      this.stalemateIn = 30;
+      if (this.stalemate()) {
+        this.decideOnValue('Stalemate — neither side can engage the other, decided on surviving army value');
+        return;
+      }
     }
+    if (this.time >= MAX_BATTLE_TIME) {
+      this.decideOnValue('Time limit — decided on surviving army value');
+    }
+  };
+
+  Battle.prototype.decideOnValue = function (reason) {
+    const va = this.remainingValue(0), vb = this.remainingValue(1);
+    this.over = true;
+    this.winner = Math.abs(va - vb) < 1 ? -1 : (va > vb ? 0 : 1);
+    this.reason = reason;
+  };
+
+  /* True when no living unit on either side can ever engage any living enemy:
+   * every weapon is the wrong domain or tag, or the only enemies left are
+   * submerged and nobody left has sonar. Idle units hold still, so nothing
+   * would change before the clock ran out.
+   *
+   * It does not try to call a battle where units could hit each other but
+   * cannot reach — armour on opposite banks of a river. The time limit still
+   * settles those. */
+  Battle.prototype.stalemate = function () {
+    const units = this.units;
+    for (let i = 0; i < units.length; i++) {
+      const u = units[i];
+      if (!u.alive) continue;
+      for (let k = 0; k < units.length; k++) {
+        const e = units[k];
+        if (!e.alive || e.team === u.team) continue;
+        if (this.couldEngage(u, e)) return false;
+      }
+    }
+    return true;
+  };
+
+  /* Could `u` — or the aircraft a carrier still has left to launch — engage `e`
+   * at all, given the chance? Deliberately ignores range and pathing. */
+  Battle.prototype.couldEngage = function (u, e) {
+    if (armedFor(u.type, e) && (!e.type.stealth || u.type.asw || this.canSee(u, e))) return true;
+    const squad = u.type.squadron;
+    if (squad && u.reserve > 0) {
+      const craft = Units.TYPES[squad.type];
+      if (craft && armedFor(craft, e) && (!e.type.stealth || craft.asw)) return true;
+    }
+    return false;
+  };
+
+  function armedFor(type, e) {
+    for (let i = 0; i < type.weapons.length; i++) {
+      const d = type.weapons[i];
+      if (d.kind !== 'repair' && mountCanHit(d, e)) return true;
+    }
+    return false;
+  }
+
+  Battle.prototype.nearestAlly = function (u) {
+    let best = null, bestD = Infinity;
+    for (let i = 0; i < this.units.length; i++) {
+      const a = this.units[i];
+      if (!a.alive || a === u || a.team !== u.team || a.domain === AIR) continue;
+      const d = U.dist2(u.x, u.y, a.x, a.y);
+      if (d < bestD) { bestD = d; best = a; }
+    }
+    return best;
   };
 
   Battle.DT = DT;
