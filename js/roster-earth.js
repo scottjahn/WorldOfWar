@@ -194,6 +194,28 @@
       weapons: [{ name: 'Bomb Bay', kind: 'bomb', dmg: 320, pen: 105, range: 110, cd: 8.0, salvo: 4, salvoDelay: 0.12, splash: 95, spread: 0.02, targets: GROUND, color: '#ffae5a' }]
     }),
 
+    b52: unit({
+      /* Priced out of reach below the 6,000 budget, the way the Death Star is kept
+       * out of Space's smaller battles. At 6,000 it is nearly the whole army, which
+       * is its own balance: whatever the stick misses is left to fight on alone. */
+      name: 'B-52 Stratofortress', domain: AIR, cost: 5000, hp: 11000, armor: 25,
+      speed: 185, radius: 24, shape: 'stratobomber', move: 'fixedwing', turnRate: 0.9, accel: 110,
+      runOut: 700,
+      role: 'Strategic bomber',
+      desc: 'Walks a stick of twenty-seven bombs straight through a formation and flattens a strip ' +
+        'of the map on every pass. The tail gun came out in 1991, so it carries nothing that can ' +
+        'shoot back at an aircraft — it simply takes the punishment. Armour and artillery have ' +
+        'no answer to it at all, and a flak battery that bunches up is just a tighter target. ' +
+        'SAMs and fighters are the answer.',
+      weapons: [{
+        /* `carpet` lays the stick along the flight track, 16 world units a bomb,
+         * rather than dropping every bomb on the one target. */
+        name: 'Carpet Bombing', kind: 'bomb', dmg: 700, pen: 110, range: 300, cd: 8.0,
+        salvo: 27, salvoDelay: 0.055, carpet: 16, splash: 85, spread: 0.02,
+        targets: GROUND, color: '#ffae5a'
+      }]
+    }),
+
     /* ==================== SEA ==================== */
 
     patrolboat: unit({

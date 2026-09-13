@@ -64,7 +64,8 @@
       tracerWidth: 1.6,
       beam: false,        // draw as a lance with a glowing core, not a short streak
       boresight: false,   // fixed to the hull: the platform must turn to aim it
-      arc: 0.4            // boresight only — how far off the bow it will still fire
+      arc: 0.4,           // boresight only — how far off the bow it will still fire
+      carpet: 0           // bombs only — lay the salvo along the track, this far apart
     }, def);
   }
 
@@ -83,6 +84,7 @@
       shape: 'tank',
       hidden: false,      // true = carried by another unit, never sold in the roster
       squadron: null,     // { type, count, respawn, reserve } — units this one launches
+      runOut: 0,          // fixed-wing only — after a pass, fly on this far before coming back
       tags: []
     }, def);
     u.weapons = u.weapons.map(weapon);

@@ -197,11 +197,22 @@ Other systems that shape fights:
   F-14 Tomcats and replaces losses from six spare airframes on a timer. The Tomcats are not
   sold separately and cost nothing extra; the carrier's price is the whole package. It has no
   surface armament at all, so sinking it both removes the ship and stops the replacements.
+- **The B-52** — the B-52 Stratofortress costs 5,000, out of reach below the 6,000 budget. It
+  walks a 27-bomb stick along its flight path rather than dropping on one point, so every pass
+  flattens a strip of the map, and it carries no guns at all. Armour, artillery and infantry
+  have no answer to it. SAMs and fighters are the answer — gun-armed anti-air is not, because a
+  stick lands on a flak battery before the flak has done much to an 11,000-HP airframe.
 
 Counters worth knowing, each measured over repeated seeded battles at equal cost: AT Teams
 beat medium tanks but lose to heavies; rifle swarms overrun light tanks; jeeps overrun
 artillery; flak tanks and SAMs shred anything with wings; battleships beat destroyers;
 missile corvettes trade closely with destroyers.
+
+The B-52 measures, over 24 seeded battles each at equal cost: 24/24 against heavy tanks, medium
+tanks, rifle squads, artillery, destroyers and battleships; 23/24 against flak tanks; 3/24 against SAM
+launchers and 0/24 against fighters. Against generated armies it wins a little under half —
+10/24 on its own against 5,000 points, and 10/24 at 6,000 and 12/24 at 12,000 with Auto-fill
+spending the rest of the budget.
 
 Submarines gut anything without sonar — including battleships, which they out-range while
 staying invisible — and lose badly to everything with it: destroyers, patrol boats and
@@ -259,6 +270,14 @@ and filtered to its faction.
 
 Weapons with `kind: 'melee'` resolve on contact with no projectile, and their `range` is
 reach measured between the two bodies rather than between centres.
+
+A bomb mount with `carpet: <spacing>` lays its salvo along the flight track instead of on the
+target: the first bomb lands on the target and each one after it that much further along the
+heading it was released on, and the stick finishes even if the target dies mid-run. A
+fixed-wing unit with `runOut: <distance>` flies straight on after each pass until it is that
+far from the target before turning back. Anything that turns wider than its own attack range
+needs it — without it the aircraft swings back while still inside its turning circle and
+orbits the target for the rest of the battle, never pointed at it.
 
 Weapons pick targets three ways. `targets` is the domain mask — a mount that omits `AIR`
 cannot shoot back at aircraft. `prefersTag` and `onlyTag` do the same job over unit `tags`,

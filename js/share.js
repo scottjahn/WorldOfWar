@@ -37,7 +37,8 @@
       'rifles', 'mgteam', 'atteam', 'mortar', 'jeep', 'apc', 'lighttank', 'medtank',
       'heavytank', 'flaktank', 'sam', 'spg', 'mlrs', 'repair', 'pillbox', 'coastalgun',
       'drone', 'gunship', 'attackheli', 'fighter', 'bomber', 'patrolboat', 'corvette',
-      'destroyer', 'battleship', 'carrier', 'f14', 'submarine'
+      'destroyer', 'battleship', 'carrier', 'f14', 'submarine',
+      'b52'
     ],
     animals: [
       'hamster', 'pigeon', 'rabbit', 'budgie', 'housecat', 'ferret', 'terrier', 'parrot',

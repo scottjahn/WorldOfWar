@@ -607,7 +607,17 @@
         if (w.range > attackRange) attackRange = w.range;
       }
       if (!attackRange) attackRange = u.type.maxRange;
-      if (d < attackRange * 0.5) {
+      const runOut = u.type.runOut;
+      if (runOut && (u.extending ? d < runOut : d < attackRange * 0.5)) {
+        /* A heavy aircraft that turns wider than its own attack range cannot
+         * break off just past the target the way a fighter does: it swings back
+         * while still inside its turning circle and orbits the thing for the rest
+         * of the battle, never pointed at it. So it flies straight on after a pass
+         * until it has room, and only then turns in for the next run. */
+        u.extending = true;
+        aimX = u.x + M.cos(u.hdg) * 400;
+        aimY = u.y + M.sin(u.hdg) * 400;
+      } else if (!runOut && d < attackRange * 0.5) {
         /* Break off and set up another pass. These aircraft fire nose-on, so a
          * standing orbit would keep them alive and silent — they have to point at
          * the target to shoot. Breaking to just outside weapon range keeps the
@@ -620,6 +630,7 @@
         aimY = tgt.y + M.sin(ang) * breakR;
       } else {
         /* Run straight in so the guns bear. */
+        u.extending = false;
         aimX = tgt.x; aimY = tgt.y;
       }
     } else {
@@ -686,7 +697,9 @@
         if (w.salvoTimer <= 0) {
           w.salvoTimer = d.salvoDelay;
           w.salvoLeft--;
-          if (w.target && w.target.alive) this.fireOne(u, w, w.target);
+          /* A carpet stick is already falling on a fixed line, so it finishes
+           * whatever became of the unit it was released over. */
+          if (d.carpet || (w.target && w.target.alive)) this.fireOne(u, w, w.target);
           else w.salvoLeft = 0;
         }
         continue;
@@ -775,13 +788,27 @@
     const sx = u.x + M.cos(bearing) * muzzle;
     const sy = u.y + M.sin(bearing) * muzzle;
 
-    /* Lead the target based on flight time. */
-    let aimX = tgt.x, aimY = tgt.y;
-    if (d.lead && d.speed > 0) {
-      const flight = U.dist(sx, sy, tgt.x, tgt.y) / (d.kind === 'shell' ? 420 : d.speed);
-      const tv = velocityOf(tgt);
-      aimX += tv.x * flight;
-      aimY += tv.y * flight;
+    /* Which round of the burst this is. fight() has already counted it off. */
+    const shot = d.salvo - 1 - w.salvoLeft;
+
+    let aimX, aimY;
+    if (d.carpet && shot > 0) {
+      /* The rest of a carpet stick walks on from where the first bomb landed,
+       * along the heading it was released on. Each bomb lands `carpet` further on
+       * and the aircraft advances about that far between releases, so the stick
+       * keeps falling just ahead of it rather than piling onto one point. */
+      aimX = w.stickX + M.cos(w.stickHdg) * d.carpet * shot;
+      aimY = w.stickY + M.sin(w.stickHdg) * d.carpet * shot;
+    } else {
+      /* Lead the target based on flight time. */
+      aimX = tgt.x; aimY = tgt.y;
+      if (d.lead && d.speed > 0) {
+        const flight = U.dist(sx, sy, tgt.x, tgt.y) / (d.kind === 'shell' ? 420 : d.speed);
+        const tv = velocityOf(tgt);
+        aimX += tv.x * flight;
+        aimY += tv.y * flight;
+      }
+      if (d.carpet) { w.stickX = aimX; w.stickY = aimY; w.stickHdg = u.hdg; }
     }
 
     /* Scatter: rotate the aim point around the shooter by a random spread angle. */

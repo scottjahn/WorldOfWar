@@ -1164,6 +1164,63 @@
     ctx.beginPath(); ctx.arc(r * 0.75, 0, r * 0.14, 0, U.TAU); ctx.fill();
   }
 
+  /* The B-52: wider than it is long, a pencil fuselage under shoulder wings swept
+   * back 35°, and eight engines hung in four twin pods ahead of the leading edge. */
+  function drawStratobomber(ctx, r, body, dark, light) {
+    /* Leading edge runs from the root at 0.35r back to the tip at -0.55r. */
+    const span = r * 1.65;
+    const leadX = function (y) { return r * 0.35 - r * 0.9 * Math.abs(y) / span; };
+
+    ctx.fillStyle = body;
+    ctx.beginPath();
+    ctx.moveTo(r * 0.35, 0);
+    ctx.lineTo(-r * 0.55, -span);
+    ctx.lineTo(-r * 0.78, -span);
+    ctx.lineTo(-r * 0.3, 0);
+    ctx.lineTo(-r * 0.78, span);
+    ctx.lineTo(-r * 0.55, span);
+    ctx.closePath(); ctx.fill();
+
+    /* Tailplane. */
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.98, 0);
+    ctx.lineTo(-r * 1.28, -r * 0.6);
+    ctx.lineTo(-r * 1.42, -r * 0.6);
+    ctx.lineTo(-r * 1.3, 0);
+    ctx.lineTo(-r * 1.42, r * 0.6);
+    ctx.lineTo(-r * 1.28, r * 0.6);
+    ctx.closePath(); ctx.fill();
+
+    /* Fuselage. */
+    ctx.fillStyle = dark;
+    ctx.beginPath();
+    ctx.moveTo(r * 1.5, 0);
+    ctx.quadraticCurveTo(r * 1.3, -r * 0.15, r * 0.9, -r * 0.15);
+    ctx.lineTo(-r * 1.45, -r * 0.09);
+    ctx.lineTo(-r * 1.45, r * 0.09);
+    ctx.lineTo(r * 0.9, r * 0.15);
+    ctx.quadraticCurveTo(r * 1.3, r * 0.15, r * 1.5, 0);
+    ctx.closePath(); ctx.fill();
+
+    /* Four twin pods, each pair of engines side by side. */
+    ctx.fillStyle = '#20202a';
+    [0.55, 1.08].forEach(function (y) {
+      for (let s = -1; s <= 1; s += 2) {
+        const py = s * r * y;
+        const px = leadX(py);
+        ctx.fillRect(px - r * 0.08, py - r * 0.13, r * 0.3, r * 0.11);
+        ctx.fillRect(px - r * 0.08, py + r * 0.02, r * 0.3, r * 0.11);
+      }
+    });
+
+    /* Fin, seen edge-on, and the flight deck glazing. */
+    ctx.strokeStyle = light;
+    ctx.lineWidth = Math.max(1, r * 0.07);
+    ctx.beginPath(); ctx.moveTo(-r * 0.95, 0); ctx.lineTo(-r * 1.4, 0); ctx.stroke();
+    ctx.fillStyle = light;
+    ctx.beginPath(); ctx.arc(r * 1.12, 0, r * 0.1, 0, U.TAU); ctx.fill();
+  }
+
   function drawBoat(ctx, r, body, dark, light) {
     ctx.fillStyle = dark;
     ctx.beginPath();
@@ -1272,6 +1329,7 @@
       case 'heli': drawHeli(ctx, r, body, dark, light, live); break;
       case 'jet': drawJet(ctx, r, body, dark, light); break;
       case 'bomber': drawBomber(ctx, r, body, dark, light); break;
+      case 'stratobomber': drawStratobomber(ctx, r, body, dark, light); break;
       case 'boat': drawBoat(ctx, r, body, dark, light); break;
       case 'ship': drawShip(ctx, r, body, dark, light); break;
       case 'carrier': drawCarrier(ctx, r, body, dark, light); break;
