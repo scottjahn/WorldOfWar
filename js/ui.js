@@ -329,6 +329,7 @@
     });
 
     if (t.stealth) html += '<div class="trait">Submerged — only sonar-equipped units can see it.</div>';
+    if (t.lowObservable) html += '<div class="trait">Stealth — nothing can see it from more than ' + t.lowObservable + ' away.</div>';
     if (t.asw) html += '<div class="trait">Sonar — can detect submarines.</div>';
     if (t.move === 'static') html += '<div class="trait">Cannot move once deployed.</div>';
     if (t.move === 'fixedwing') {

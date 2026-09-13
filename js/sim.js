@@ -288,6 +288,11 @@
 
   /* Submarines are invisible unless the looker has sonar, or is right on top of them. */
   Battle.prototype.canSee = function (looker, other) {
+    /* Radar stealth is a different problem from a submerged hull: sonar is no
+     * help, and nothing sees the aircraft until it is close — so a SAM battery
+     * gets a shot at an F-117 only while it is on its bombing run. */
+    const lo = other.type.lowObservable;
+    if (lo) return U.dist2(looker.x, looker.y, other.x, other.y) < lo * lo;
     if (!other.type.stealth) return true;
     const d2 = U.dist2(looker.x, looker.y, other.x, other.y);
     const r = looker.type.asw ? ASW_DETECT : PASSIVE_DETECT;
@@ -870,7 +875,12 @@
       }
 
       if (p.kind === 'missile' || p.kind === 'torpedo') {
-        if (p.target && p.target.alive) {
+        /* Guidance against a stealth aircraft lasts only as long as the launcher
+         * can still see it. Once it slips back outside detection range the
+         * missile loses lock and flies on straight — which is how a SAM site
+         * that gets one glimpse of an F-117 overhead mostly comes away empty. */
+        const lo = p.target && p.target.type.lowObservable;
+        if (p.target && p.target.alive && (!lo || (p.owner.alive && this.canSee(p.owner, p.target)))) {
           const want = M.atan2(p.target.y - p.y, p.target.x - p.x);
           p.hdg = U.turnToward(p.hdg, want, p.def.turnRate * dt);
           p.vx = M.cos(p.hdg) * p.def.speed;
@@ -1070,11 +1080,13 @@
   /* Could `u` — or the aircraft a carrier still has left to launch — engage `e`
    * at all, given the chance? Deliberately ignores range and pathing. */
   Battle.prototype.couldEngage = function (u, e) {
-    if (armedFor(u.type, e) && (!e.type.stealth || u.type.asw || this.canSee(u, e))) return true;
+    const hidden = e.type.lowObservable || e.type.stealth;
+    if (armedFor(u.type, e) && (!hidden || this.canSee(u, e) ||
+      (e.type.stealth && u.type.asw))) return true;
     const squad = u.type.squadron;
     if (squad && u.reserve > 0) {
       const craft = Units.TYPES[squad.type];
-      if (craft && armedFor(craft, e) && (!e.type.stealth || craft.asw)) return true;
+      if (craft && armedFor(craft, e) && (!hidden || (e.type.stealth && craft.asw))) return true;
     }
     return false;
   };

@@ -216,6 +216,25 @@
       }]
     }),
 
+    f117: unit({
+      /* `lowObservable` is the whole unit: nothing sees it beyond that range, and
+       * the bomb release range sits inside it, so every attack run exposes it to
+       * whatever guns are standing near the target. */
+      name: 'F-117 Nighthawk', domain: AIR, cost: 700, hp: 450, armor: 12,
+      speed: 250, radius: 14, shape: 'nighthawk', move: 'fixedwing', turnRate: 1.3, accel: 260,
+      runOut: 520, lowObservable: 180,
+      role: 'Stealth strike',
+      desc: 'Invisible to radar: nothing can see it, let alone shoot at it, until it is almost ' +
+        'overhead. It flies straight past the SAM umbrella to put two laser-guided bombs into ' +
+        'whatever matters most. It has to come close to drop, though, and a flak battery sitting ' +
+        'beside the target will see it then — it carries no guns and no missiles of its own.',
+      weapons: [{
+        name: 'GBU-27 Paveway', kind: 'bomb', dmg: 520, pen: 150, range: 300, cd: 7.0,
+        salvo: 2, salvoDelay: 0.35, splash: 26, spread: 0.01,
+        targets: GROUND, color: '#ffae5a'
+      }]
+    }),
+
     /* ==================== SEA ==================== */
 
     patrolboat: unit({

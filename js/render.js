@@ -1221,6 +1221,57 @@
     ctx.beginPath(); ctx.arc(r * 1.12, 0, r * 0.1, 0, U.TAU); ctx.fill();
   }
 
+  /* The F-117: a long faceted arrowhead, longer than it is wide, with a
+   * sawtooth trailing edge and two V-tails canted outboard. Drawn mostly in the
+   * dark tone — it is a black aeroplane with a team-coloured spine. */
+  function drawNighthawk(ctx, r, body, dark, light) {
+    ctx.fillStyle = dark;
+    ctx.beginPath();
+    ctx.moveTo(r * 1.45, 0);
+    ctx.lineTo(-r * 0.62, -r * 0.98);
+    ctx.lineTo(-r * 0.78, -r * 0.82);
+    ctx.lineTo(-r * 0.5, -r * 0.42);
+    ctx.lineTo(-r * 0.95, -r * 0.16);
+    ctx.lineTo(-r * 0.78, 0);
+    ctx.lineTo(-r * 0.95, r * 0.16);
+    ctx.lineTo(-r * 0.5, r * 0.42);
+    ctx.lineTo(-r * 0.78, r * 0.82);
+    ctx.lineTo(-r * 0.62, r * 0.98);
+    ctx.closePath(); ctx.fill();
+
+    /* Faceted spine. */
+    ctx.fillStyle = body;
+    ctx.beginPath();
+    ctx.moveTo(r * 1.2, 0);
+    ctx.lineTo(-r * 0.2, -r * 0.24);
+    ctx.lineTo(-r * 0.72, 0);
+    ctx.lineTo(-r * 0.2, r * 0.24);
+    ctx.closePath(); ctx.fill();
+
+    /* V-tails. */
+    ctx.strokeStyle = body;
+    ctx.lineWidth = Math.max(1, r * 0.1);
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.45, -r * 0.14); ctx.lineTo(-r * 1.1, -r * 0.5);
+    ctx.moveTo(-r * 0.45, r * 0.14); ctx.lineTo(-r * 1.1, r * 0.5);
+    ctx.stroke();
+
+    /* Facet breaks, catching the light. */
+    ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+    ctx.lineWidth = Math.max(1, r * 0.04);
+    ctx.beginPath();
+    ctx.moveTo(r * 1.45, 0); ctx.lineTo(-r * 0.5, -r * 0.42);
+    ctx.moveTo(r * 1.45, 0); ctx.lineTo(-r * 0.5, r * 0.42);
+    ctx.stroke();
+
+    ctx.fillStyle = light;
+    ctx.beginPath();
+    ctx.moveTo(r * 0.95, 0);
+    ctx.lineTo(r * 0.6, -r * 0.1);
+    ctx.lineTo(r * 0.6, r * 0.1);
+    ctx.closePath(); ctx.fill();
+  }
+
   function drawBoat(ctx, r, body, dark, light) {
     ctx.fillStyle = dark;
     ctx.beginPath();
@@ -1330,6 +1381,7 @@
       case 'jet': drawJet(ctx, r, body, dark, light); break;
       case 'bomber': drawBomber(ctx, r, body, dark, light); break;
       case 'stratobomber': drawStratobomber(ctx, r, body, dark, light); break;
+      case 'nighthawk': drawNighthawk(ctx, r, body, dark, light); break;
       case 'boat': drawBoat(ctx, r, body, dark, light); break;
       case 'ship': drawShip(ctx, r, body, dark, light); break;
       case 'carrier': drawCarrier(ctx, r, body, dark, light); break;

@@ -221,7 +221,7 @@
     {
       name: 'Air Cavalry',
       picks: [['attackheli', 2], ['gunship', 2.2], ['fighter', 1.6], ['drone', 2], ['bomber', 0.8],
-        ['rifles', 1.4], ['sam', 0.8]]
+        ['f117', 1.0], ['rifles', 1.4], ['sam', 0.8]]
     },
     {
       name: 'Gun Line',
@@ -252,7 +252,7 @@
        * `affordable` simply never offers it below that. The fighters and flak are
        * there to thin out the enemy's anti-air before it thins out the bomber. */
       name: 'Strategic Bombing',
-      picks: [['b52', 3], ['fighter', 1.8], ['flaktank', 1.4], ['sam', 1.0],
+      picks: [['b52', 3], ['f117', 1.4], ['fighter', 1.8], ['flaktank', 1.4], ['sam', 1.0],
         ['medtank', 1.2], ['rifles', 1.6], ['atteam', 1.2]]
     }
   ];
@@ -261,7 +261,7 @@
   const DEPTH = {
     spg: 0.15, mlrs: 0.2, sam: 0.25, mortar: 0.3, coastalgun: 0.25, repair: 0.25,
     battleship: 0.2, corvette: 0.35, submarine: 0.3, carrier: 0.12,
-    bomber: 0.2, fighter: 0.3, b52: 0.12,
+    bomber: 0.2, fighter: 0.3, b52: 0.12, f117: 0.25,
     heavytank: 0.7, medtank: 0.68, lighttank: 0.72, apc: 0.72, jeep: 0.78,
     rifles: 0.75, mgteam: 0.6, atteam: 0.68, pillbox: 0.55,
     /* Animals: the slow heavies start forward, the quick ones sweep from behind. */

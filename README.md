@@ -210,6 +210,11 @@ Other systems that shape fights:
   flattens a strip of the map, and it carries no guns at all. Armour, artillery and infantry
   have no answer to it. SAMs and fighters are the answer — gun-armed anti-air is not, because a
   stick lands on a flak battery before the flak has done much to an 11,000-HP airframe.
+- **The F-117** — the F-117 Nighthawk is invisible to anything more than 180 away, sonar
+  included, and releases its laser-guided bombs from 300. It is only seen as it overflies the
+  target, and a missile fired at it keeps its lock only while the launcher can still see it, so
+  a SAM site that gets one glimpse mostly comes away empty. Guns do not need a lock: massed MG
+  teams, APCs and flak are what catch it. It carries nothing that can hit an aircraft.
 
 Counters worth knowing, each measured over repeated seeded battles at equal cost: AT Teams
 beat medium tanks but lose to heavies; rifle swarms overrun light tanks; jeeps overrun
@@ -221,6 +226,12 @@ tanks, rifle squads, artillery, destroyers and battleships; 23/24 against flak t
 launchers and 0/24 against fighters. Against generated armies it wins 12/24 on its own against
 5,000 points, and 7/24 at 6,000 and 9/24 at 12,000 with Auto-fill spending the rest of the
 budget.
+
+A 3,000-point stack of F-117s measures, over 16 seeded battles each at equal cost: 16/16
+against heavy tanks, medium tanks, artillery, rifles and destroyers; 13/16 against SAM
+launchers; 7/16 against flak tanks; 1/16 against APCs and 0/16 against MG teams. Swapping 700
+points of a generated 3,000-point army for one lifts it from 6/16 to 10/16 against the same
+opponents; at 6,000, swapping 1,400 points for two leaves it level at 7/16.
 
 Submarines gut anything without sonar — including battleships, which they out-range while
 staying invisible — and lose badly to everything with it: destroyers, patrol boats and
@@ -286,6 +297,12 @@ fixed-wing unit with `runOut: <distance>` flies straight on after each pass unti
 far from the target before turning back. Anything that turns wider than its own attack range
 needs it — without it the aircraft swings back while still inside its turning circle and
 orbits the target for the rest of the battle, never pointed at it.
+
+`lowObservable: <range>` is radar stealth, and separate from `stealth`, which means
+submerged. Nothing sees a low-observable unit from farther away than that range — sonar is no
+help — and a homing missile aimed at one steers only while its launcher can still see the
+target. Give such a unit a weapon range longer than its own `lowObservable` range, or it is
+seen on every attack.
 
 Weapons pick targets three ways. `targets` is the domain mask — a mount that omits `AIR`
 cannot shoot back at aircraft. `prefersTag` and `onlyTag` do the same job over unit `tags`,

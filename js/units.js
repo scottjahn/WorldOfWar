@@ -81,6 +81,7 @@
       weapons: [],
       asw: false,         // can detect and attack submerged units
       stealth: false,
+      lowObservable: 0,   // radar stealth — unseen by anything farther away than this
       shape: 'tank',
       hidden: false,      // true = carried by another unit, never sold in the roster
       squadron: null,     // { type, count, respawn, reserve } — units this one launches
