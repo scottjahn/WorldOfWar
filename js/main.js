@@ -287,6 +287,7 @@
 
   Game.prototype.selectType = function (id) {
     if (this.phase !== 'place') return;
+    W.Sound.cue('uiSelect');
     this.placingType = this.placingType === id ? null : id;
     this.ui.refreshRosterSelection();
   };
@@ -368,8 +369,9 @@
     }
 
     const err = this.placementError(this.placingType, world.x, world.y);
-    if (err) { this.ui.toast(err); return; }
+    if (err) { W.Sound.cue('uiDeny'); this.ui.toast(err); return; }
 
+    W.Sound.cue('uiPlace');
     this.armies[this.playerTeam].push({ type: this.placingType, x: world.x, y: world.y });
     this.undoStack.push({ action: 'add' });
     this.afterArmyChange();
@@ -383,6 +385,7 @@
     const idx = army.indexOf(hit);
     army.splice(idx, 1);
     this.undoStack.push({ action: 'remove', entry: hit, index: idx });
+    W.Sound.cue('uiRemove');
     this.hover = null;
     this.afterArmyChange();
     this.ui.toast(Units.TYPES[hit.type].name + ' removed');
@@ -408,7 +411,7 @@
     if (this.phase !== 'place') return;
     const team = this.playerTeam;
     const remaining = this.budget - this.armyCost(team);
-    if (remaining <= 0) { this.ui.toast('Budget already spent'); return; }
+    if (remaining <= 0) { W.Sound.cue('uiDeny'); this.ui.toast('Budget already spent'); return; }
     const generated = W.ArmyAI.generateArmy(this.terrain, team, remaining, (Math.random() * 0xffffffff) >>> 0);
     /* Keep whatever the player placed by hand; only add what fits around it. */
     const self = this;
@@ -421,6 +424,7 @@
     });
     this.undoStack = [];
     this.afterArmyChange();
+    W.Sound.cue(added ? 'uiPlace' : 'uiDeny');
     this.ui.toast(added ? 'Added ' + added + ' units (' + generated.doctrine + ')' : 'No room left to auto-fill');
   };
 
@@ -432,7 +436,7 @@
 
   Game.prototype.ready = function () {
     if (this.phase !== 'place') return;
-    if (!this.armies[this.playerTeam].length) { this.ui.toast('Place at least one unit'); return; }
+    if (!this.armies[this.playerTeam].length) { W.Sound.cue('uiDeny'); this.ui.toast('Place at least one unit'); return; }
 
     if (this.hotseat && this.playerTeam === 0) {
       const self = this;
@@ -491,6 +495,7 @@
     this.ui.showPlacement(false);
     this.ui.showBattleControls(true);
     this.ui.setPhaseLabel('Battle');
+    W.Sound.cue('uiStart');
     this.ui.dom.btnSpeed.textContent = '1×';
     this.ui.dom.btnPause.textContent = '❚❚';
     this.renderer.fit();
@@ -522,6 +527,10 @@
     const winner = b.winner;
     const ed = this.edition;
     const title = winner === -1 ? 'Stalemate' : W.Editions.teamName(winner) + ' Victory';
+    /* Told from the player's seat: in hotseat there is no losing side to console,
+     * so a decided battle is always the winning sting. */
+    W.Sound.cue(winner === -1 ? 'uiDraw'
+      : (this.hotseat || winner === this.playerTeam) ? 'uiWin' : 'uiLose');
     const cls = winner === 0 ? 'win-a' : winner === 1 ? 'win-b' : 'win-draw';
     const words = ed.words || {};
 
@@ -704,6 +713,22 @@
 
       this.ui.refreshTallies();
     }
+
+    /* One frame of battle noise. Cleared unconditionally — muted, unsupported or
+     * simply between phases, the simulation must not be left holding a queue. */
+    if (this.battle && this.battle.events.length) {
+      if (this.phase === 'battle' && !this.paused) {
+        W.Sound.battle(this.battle.events, {
+          x: this.renderer.cam.x, y: this.renderer.cam.y, zoom: this.renderer.cam.zoom,
+          w: this.renderer.w, h: this.renderer.h
+        });
+      }
+      this.battle.events.length = 0;
+    }
+    /* The bed belongs to a battle actually in progress: it fades out under the
+     * pause, and again the moment the result is decided. */
+    W.Sound.setAmbience(
+      this.phase === 'battle' && this.battle && !this.paused && !this.battle.over ? 1 : 0);
 
     /* Kept outside the stepping block above: that block is skipped once the battle
      * is over (and while paused), so a result detected there could be missed. */

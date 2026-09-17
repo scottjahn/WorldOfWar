@@ -93,6 +93,8 @@ html, body {
 .icon-btn.wide { width: 44px; font-size: 13px; font-weight: 600; }
 .icon-btn:hover { background: #232e3b; border-color: #3a4757; }
 .icon-btn:active { transform: translateY(1px); }
+/* Muted reads as switched off rather than just as a different glyph. */
+.icon-btn.off { opacity: 0.45; }
 
 #battleControls { display: flex; gap: 6px; }
 

@@ -7,6 +7,7 @@
  *
  * Adding one means: a js/roster-<id>.js file, an entry here, a script tag in
  * index.html, and a wire list in js/share.js so replay links can name its units.
+ * A js/sounds-<id>.js table is optional; without one the edition is silent.
  */
 (function (W) {
   'use strict';
@@ -270,6 +271,9 @@
       emblem: '🌍',
       available: true,
       roster: function () { return W.RosterEarth; },
+      /* Every edition has its own voice, synthesised at runtime — see
+       * js/audio.js. An edition with no table plays no sound at all. */
+      sounds: function () { return W.SoundsEarth; },
       maps: EARTH_MAPS,
       cols: 120, rows: 70,
       budgets: [1500, 3000, 6000, 12000],
@@ -296,6 +300,7 @@
       emblem: '🐾',
       available: true,
       roster: function () { return W.RosterAnimals; },
+      sounds: function () { return W.SoundsAnimals; },
       maps: ANIMAL_MAPS,
       /* A smaller field to match smaller, slower combatants. */
       cols: 72, rows: 44,
@@ -324,6 +329,7 @@
       emblem: '🚀',
       available: true,
       roster: function () { return W.RosterSpace; },
+      sounds: function () { return W.SoundsSpace; },
       maps: SPACE_MAPS,
       /* The widest field in the game: a Star Destroyer's main battery reaches
        * 1,150 on its own, so a smaller board would start the battle already in
@@ -363,6 +369,7 @@
       emblem: '🦕',
       available: true,
       roster: function () { return W.RosterPrehistoric; },
+      sounds: function () { return W.SoundsPrehistoric; },
       maps: PREHISTORIC_MAPS,
       /* Between Animals and Earth. Almost everything here is melee, so a field the
        * size of Earth's would be spent walking; smaller than this and the fast
@@ -401,6 +408,7 @@
     W.Units.setCatalogue(ed.roster());
     W.Terrain.setEdition(ed);
     if (W.ArmyAI && W.ArmyAI.setEdition) W.ArmyAI.setEdition(ed);
+    if (W.Sound) W.Sound.setTable(ed.sounds ? ed.sounds() : null);
     return ed;
   }
 

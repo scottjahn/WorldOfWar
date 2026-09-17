@@ -34,9 +34,11 @@
   const unit = U.unit;
   const LAND = U.LAND, AIR = U.AIR, GROUND = U.GROUND, ALL = U.ALL;
 
-  /* Melee attacks resolve on contact — no projectile, so `range` is reach. */
+  /* Melee attacks resolve on contact — no projectile, so `range` is reach.
+   * `sfx` names this mount's voice in js/sounds-animals.js; a bite that does
+   * not name one gets plain teeth. */
   function bite(def) {
-    return Object.assign({ kind: 'melee', name: 'Bite', speed: 0, spread: 0, targets: GROUND }, def);
+    return Object.assign({ kind: 'melee', name: 'Bite', sfx: 'snap', speed: 0, spread: 0, targets: GROUND }, def);
   }
 
   W.RosterAnimals = {
@@ -48,7 +50,7 @@
       speed: 62, radius: 6, shape: 'critter', turnRate: 7,
       role: 'Pocket chaff',
       desc: 'Costs almost nothing and achieves almost nothing alone. Twenty of them underfoot is a different problem.',
-      weapons: [bite({ name: 'Nibble', dmg: 4, pen: 2, range: 26, cd: 0.7 })]
+      weapons: [bite({ name: 'Nibble', sfx: 'nibble', dmg: 4, pen: 2, range: 26, cd: 0.7 })]
     }),
 
     pigeon: unit({
@@ -56,7 +58,7 @@
       speed: 118, radius: 7, shape: 'bird', move: 'hover', turnRate: 5, accel: 220,
       role: 'Flock filler',
       desc: 'Ignores every fence and hedge on the field. Harmless individually, genuinely annoying in a flock.',
-      weapons: [bite({ name: 'Peck', dmg: 5, pen: 3, range: 28, cd: 0.6, targets: ALL })]
+      weapons: [bite({ name: 'Peck', sfx: 'peck', dmg: 5, pen: 3, range: 28, cd: 0.6, targets: ALL })]
     }),
 
     cornsnake: unit({
@@ -64,7 +66,7 @@
       speed: 70, radius: 7, shape: 'serpent', turnRate: 6,
       role: 'Vivarium chaff',
       desc: 'The starter snake, and it fights like one. Cheap enough that the garden can be full of them.',
-      weapons: [bite({ name: 'Nip', dmg: 5, pen: 4, range: 26, cd: 0.65 })]
+      weapons: [bite({ name: 'Nip', sfx: 'nibble', dmg: 5, pen: 4, range: 26, cd: 0.65 })]
     }),
 
     rabbit: unit({
@@ -72,7 +74,7 @@
       speed: 96, radius: 8, shape: 'critter', turnRate: 6.5,
       role: 'Fast chaff',
       desc: 'The quickest thing in the garden. Gets across open ground before anything slow can line it up.',
-      weapons: [bite({ name: 'Kick', dmg: 7, pen: 4, range: 28, cd: 0.65 })]
+      weapons: [bite({ name: 'Kick', sfx: 'nibble', dmg: 7, pen: 4, range: 28, cd: 0.65 })]
     }),
 
     budgie: unit({
@@ -80,7 +82,7 @@
       speed: 140, radius: 7, shape: 'bird', move: 'hover', turnRate: 6, accel: 260,
       role: 'Harasser',
       desc: 'Darts in, pecks, and is somewhere else before the reply arrives. Anything that can catch birds ends it instantly.',
-      weapons: [bite({ name: 'Peck', dmg: 9, pen: 6, range: 28, cd: 0.42, targets: ALL })]
+      weapons: [bite({ name: 'Peck', sfx: 'peck', dmg: 9, pen: 6, range: 28, cd: 0.42, targets: ALL })]
     }),
 
     housecat: unit({
@@ -88,7 +90,7 @@
       speed: 88, radius: 9, shape: 'quadruped', turnRate: 6,
       role: 'Bird catcher',
       desc: 'The only cheap answer to anything with wings — it will pull a bird out of the air without breaking stride.',
-      weapons: [bite({ name: 'Claws', dmg: 13, pen: 9, range: 32, cd: 0.5, targets: ALL })]
+      weapons: [bite({ name: 'Claws', sfx: 'claw', dmg: 13, pen: 9, range: 32, cd: 0.5, targets: ALL })]
     }),
 
     ferret: unit({
@@ -96,7 +98,7 @@
       speed: 104, radius: 8, shape: 'critter', turnRate: 7,
       role: 'Flanker',
       desc: 'Fast and vicious for its size. Built to get past the front line and into whatever is standing behind it.',
-      weapons: [bite({ name: 'Bite', dmg: 18, pen: 14, range: 30, cd: 0.55 })]
+      weapons: [bite({ name: 'Bite', sfx: 'snap', dmg: 18, pen: 14, range: 30, cd: 0.55 })]
     }),
 
     ballpython: unit({
@@ -104,7 +106,7 @@
       speed: 38, radius: 10, shape: 'serpent', turnRate: 4,
       role: 'Cheap holder',
       desc: 'More body than anything else at the price, and almost none of it is in a hurry. Whatever it does get hold of stops moving.',
-      weapons: [bite({ name: 'Coil', dmg: 32, pen: 18, range: 30, cd: 1.15 })]
+      weapons: [bite({ name: 'Coil', sfx: 'constrict', dmg: 32, pen: 18, range: 30, cd: 1.15 })]
     }),
 
     terrier: unit({
@@ -112,7 +114,7 @@
       speed: 84, radius: 10, shape: 'quadruped', turnRate: 5.5,
       role: 'Scrapper',
       desc: 'Has no idea how small it is. The cheapest pet that can actually hurt something wild.',
-      weapons: [bite({ name: 'Bite', dmg: 24, pen: 18, range: 32, cd: 0.6 })]
+      weapons: [bite({ name: 'Bite', sfx: 'bark', dmg: 24, pen: 18, range: 32, cd: 0.6 })]
     }),
 
     parrot: unit({
@@ -120,7 +122,7 @@
       speed: 122, radius: 9, shape: 'bird', move: 'hover', turnRate: 5, accel: 220,
       role: 'Heavy bird',
       desc: 'A beak that cracks nuts does unpleasant things to an ear. Slower than the little birds and worth shooting at.',
-      weapons: [bite({ name: 'Beak', dmg: 26, pen: 20, range: 32, cd: 0.7, targets: ALL })]
+      weapons: [bite({ name: 'Beak', sfx: 'beak', dmg: 26, pen: 20, range: 32, cd: 0.7, targets: ALL })]
     }),
 
     bulldog: unit({
@@ -128,7 +130,7 @@
       speed: 52, radius: 12, shape: 'quadruped', turnRate: 3.6,
       role: 'Anchor',
       desc: 'Slow, wide and extremely hard to move. Holds the middle of the garden while the small ones do the work.',
-      weapons: [bite({ name: 'Locked Jaw', dmg: 34, pen: 26, range: 34, cd: 0.85 })]
+      weapons: [bite({ name: 'Locked Jaw', sfx: 'bark', dmg: 34, pen: 26, range: 34, cd: 0.85 })]
     }),
 
     tortoise: unit({
@@ -136,7 +138,7 @@
       speed: 16, radius: 11, shape: 'shelled', turnRate: 1.6,
       role: 'Walking wall',
       desc: 'Nothing on the field can bite through the shell in a hurry. It will also take most of the battle to arrive.',
-      weapons: [bite({ name: 'Snap', dmg: 16, pen: 12, range: 30, cd: 1.3 })]
+      weapons: [bite({ name: 'Snap', sfx: 'snap', dmg: 16, pen: 12, range: 30, cd: 1.3 })]
     }),
 
     boa: unit({
@@ -144,7 +146,7 @@
       speed: 40, radius: 13, shape: 'serpent', turnRate: 3,
       role: 'Constrictor',
       desc: 'Three metres of muscle that hits harder than any dog in the house. It has to reach something first, and it is in no position to chase.',
-      weapons: [bite({ name: 'Constrict', dmg: 76, pen: 32, range: 32, cd: 1.25 })]
+      weapons: [bite({ name: 'Constrict', sfx: 'constrict', dmg: 76, pen: 32, range: 32, cd: 1.25 })]
     }),
 
     guarddog: unit({
@@ -152,7 +154,7 @@
       speed: 92, radius: 13, shape: 'quadruped', turnRate: 4.6,
       role: 'Line breaker',
       desc: 'The backbone of any serious pet army — fast, heavy, and the one pet that trades evenly with a wolf.',
-      weapons: [bite({ name: 'Bite', dmg: 52, pen: 40, range: 36, cd: 0.75 })]
+      weapons: [bite({ name: 'Bite', sfx: 'bark', dmg: 52, pen: 40, range: 36, cd: 0.75 })]
     }),
 
     pig: unit({
@@ -160,7 +162,7 @@
       speed: 46, radius: 15, shape: 'beast', turnRate: 2.6,
       role: 'Heavy',
       desc: 'Far more animal than anything else in the house. Soaks punishment that would rout the whole flock.',
-      weapons: [bite({ name: 'Barge', dmg: 60, pen: 44, range: 38, cd: 1.0 })]
+      weapons: [bite({ name: 'Barge', sfx: 'barge', dmg: 60, pen: 44, range: 38, cd: 1.0 })]
     }),
 
     /* ==================== KILLER ANIMALS (faction 1) ==================== */
@@ -170,7 +172,7 @@
       speed: 44, radius: 9, shape: 'viper', turnRate: 4,
       role: 'Ambusher',
       desc: 'The cheapest thing in the wild roster and the slowest. Venom does not care how thick the hide is, so it hurts a tortoise about as much as it hurts a hamster.',
-      weapons: [bite({ name: 'Venom Bite', dmg: 34, pen: 85, range: 30, cd: 0.75 })]
+      weapons: [bite({ name: 'Venom Bite', sfx: 'rattle', dmg: 34, pen: 85, range: 30, cd: 0.75 })]
     }),
 
     vulture: unit({
@@ -178,7 +180,7 @@
       speed: 112, radius: 10, shape: 'bird', move: 'hover', turnRate: 4.4, accel: 200,
       role: 'Scavenger',
       desc: 'Circles above the fight and drops on whatever is already losing. Cheap way for a wild army to reach over the line.',
-      weapons: [bite({ name: 'Tear', dmg: 30, pen: 24, range: 34, cd: 0.75, targets: ALL })]
+      weapons: [bite({ name: 'Tear', sfx: 'beak', dmg: 30, pen: 24, range: 34, cd: 0.75, targets: ALL })]
     }),
 
     hyena: unit({
@@ -186,7 +188,7 @@
       speed: 96, radius: 11, shape: 'quadruped', turnRate: 5,
       role: 'Pack hunter',
       desc: 'The cheap end of the wild roster. Works in numbers, which is the closest a Killer army gets to a swarm.',
-      weapons: [bite({ name: 'Bite', dmg: 38, pen: 30, range: 34, cd: 0.7 })]
+      weapons: [bite({ name: 'Bite', sfx: 'snap', dmg: 38, pen: 30, range: 34, cd: 0.7 })]
     }),
 
     boar: unit({
@@ -194,7 +196,7 @@
       speed: 66, radius: 12, shape: 'beast', turnRate: 3,
       role: 'Bruiser',
       desc: 'Tusks and bad temper. Tough enough that small pets simply cannot chew through it.',
-      weapons: [bite({ name: 'Tusks', dmg: 48, pen: 36, range: 36, cd: 0.85 })]
+      weapons: [bite({ name: 'Tusks', sfx: 'barge', dmg: 48, pen: 36, range: 36, cd: 0.85 })]
     }),
 
     lynx: unit({
@@ -202,7 +204,7 @@
       speed: 108, radius: 11, shape: 'quadruped', turnRate: 6,
       role: 'Bird hunter',
       desc: 'The wild answer to anything airborne, and quick enough to run down a flock before it scatters.',
-      weapons: [bite({ name: 'Pounce', dmg: 44, pen: 34, range: 36, cd: 0.6, targets: ALL })]
+      weapons: [bite({ name: 'Pounce', sfx: 'claw', dmg: 44, pen: 34, range: 36, cd: 0.6, targets: ALL })]
     }),
 
     cobra: unit({
@@ -210,7 +212,7 @@
       speed: 58, radius: 11, shape: 'viper', turnRate: 4.6,
       role: 'Venom',
       desc: 'Rears a third of its length off the ground to strike, which puts a low bird inside its reach as well. Slow, so it fights whatever comes to it rather than picking.',
-      weapons: [bite({ name: 'Hooded Strike', dmg: 44, pen: 120, range: 32, cd: 0.62, targets: ALL })]
+      weapons: [bite({ name: 'Hooded Strike', sfx: 'venom', dmg: 44, pen: 120, range: 32, cd: 0.62, targets: ALL })]
     }),
 
     wolf: unit({
@@ -218,7 +220,7 @@
       speed: 104, radius: 12, shape: 'quadruped', turnRate: 5,
       role: 'Line fighter',
       desc: 'Fast, durable and hits hard — the standard against which the whole wild roster is priced.',
-      weapons: [bite({ name: 'Bite', dmg: 58, pen: 46, range: 36, cd: 0.7 })]
+      weapons: [bite({ name: 'Bite', sfx: 'snap', dmg: 58, pen: 46, range: 36, cd: 0.7 })]
     }),
 
     eagle: unit({
@@ -226,7 +228,7 @@
       speed: 148, radius: 11, shape: 'bird', move: 'hover', turnRate: 5, accel: 260,
       role: 'Air superiority',
       desc: 'Owns the sky outright and can carry off anything small enough. Only a cat or a lynx makes it think twice.',
-      weapons: [bite({ name: 'Talons', dmg: 62, pen: 50, range: 36, cd: 0.7, targets: ALL })]
+      weapons: [bite({ name: 'Talons', sfx: 'claw', dmg: 62, pen: 50, range: 36, cd: 0.7, targets: ALL })]
     }),
 
     mamba: unit({
@@ -234,7 +236,7 @@
       speed: 132, radius: 10, shape: 'viper', turnRate: 6,
       role: 'Armour breaker',
       desc: 'The fastest snake alive carrying the most penetrating bite on the field. It barely notices a shell or a thick coat — and a hamster is no easier to kill for it than a tortoise is.',
-      weapons: [bite({ name: 'Neurotoxin', dmg: 46, pen: 130, range: 30, cd: 0.6 })]
+      weapons: [bite({ name: 'Neurotoxin', sfx: 'venom', dmg: 46, pen: 130, range: 30, cd: 0.6 })]
     }),
 
     cheetah: unit({
@@ -242,7 +244,7 @@
       speed: 168, radius: 12, shape: 'quadruped', turnRate: 5.5,
       role: 'Sprinter',
       desc: 'Nothing on four legs is faster. Crosses the field before the enemy has formed up and goes straight for the soft units.',
-      weapons: [bite({ name: 'Throat Bite', dmg: 70, pen: 54, range: 36, cd: 0.62 })]
+      weapons: [bite({ name: 'Throat Bite', sfx: 'maul', dmg: 70, pen: 54, range: 36, cd: 0.62 })]
     }),
 
     crocodile: unit({
@@ -250,7 +252,7 @@
       speed: 38, radius: 15, shape: 'shelled', turnRate: 1.8,
       role: 'Ambusher',
       desc: 'Armoured like nothing else and bites harder than anything its price. Desperately slow away from water.',
-      weapons: [bite({ name: 'Death Roll', dmg: 130, pen: 78, range: 40, cd: 1.5 })]
+      weapons: [bite({ name: 'Death Roll', sfx: 'charge', dmg: 130, pen: 78, range: 40, cd: 1.5 })]
     }),
 
     lion: unit({
@@ -258,7 +260,7 @@
       speed: 88, radius: 15, shape: 'quadruped', turnRate: 3.8,
       role: 'Heavy',
       desc: 'Big, fast and armoured — the unit a pet army has to plan around rather than simply outnumber.',
-      weapons: [bite({ name: 'Maul', dmg: 92, pen: 68, range: 40, cd: 0.85 })]
+      weapons: [bite({ name: 'Maul', sfx: 'maul', dmg: 92, pen: 68, range: 40, cd: 0.85 })]
     }),
 
     bear: unit({
@@ -266,7 +268,7 @@
       speed: 62, radius: 18, shape: 'beast', turnRate: 2.6,
       role: 'Breakthrough',
       desc: 'Absorbs an absurd amount of biting and flattens whatever it reaches. Slow enough to be avoided, if you can afford to.',
-      weapons: [bite({ name: 'Swipe', dmg: 120, pen: 82, range: 42, cd: 1.0, splash: 26 })]
+      weapons: [bite({ name: 'Swipe', sfx: 'charge', dmg: 120, pen: 82, range: 42, cd: 1.0, splash: 26 })]
     }),
 
     rhino: unit({
@@ -274,7 +276,7 @@
       speed: 74, radius: 20, shape: 'beast', turnRate: 1.9,
       role: 'Unstoppable',
       desc: 'Hide that small teeth simply cannot penetrate, at a weight that goes through a line rather than round it.',
-      weapons: [bite({ name: 'Charge', dmg: 150, pen: 95, range: 44, cd: 1.2, splash: 30 })]
+      weapons: [bite({ name: 'Charge', sfx: 'charge', dmg: 150, pen: 95, range: 44, cd: 1.2, splash: 30 })]
     })
   };
 })(window);

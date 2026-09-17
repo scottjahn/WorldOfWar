@@ -38,6 +38,7 @@
       btnSpeed: document.getElementById('btnSpeed'),
       btnRestart: document.getElementById('btnRestart'),
       btnFit: document.getElementById('btnFit'),
+      btnSound: document.getElementById('btnSound'),
       btnMenu: document.getElementById('btnMenu'),
       btnUndo: document.getElementById('btnUndo'),
       btnClear: document.getElementById('btnClear'),
@@ -48,6 +49,7 @@
     this.activeDomain = 'land';
     this.toastTimer = 0;
     this.bind();
+    this.refreshSound();
   }
 
   UI.prototype.bind = function () {
@@ -55,6 +57,14 @@
 
     d.btnMenu.addEventListener('click', function () { g.openMenu(); });
     d.btnFit.addEventListener('click', function () { g.renderer.fit(); });
+    d.btnSound.addEventListener('click', function () {
+      const on = W.Sound.toggle();
+      self.refreshSound();
+      /* Confirm the new state audibly — silence is its own confirmation the
+       * other way. */
+      if (on) W.Sound.cue('uiSelect');
+      self.toast(on ? 'Sound on' : 'Sound off');
+    });
     d.btnUndo.addEventListener('click', function () { g.undo(); });
     d.btnClear.addEventListener('click', function () { g.clearArmy(); });
     d.btnAuto.addEventListener('click', function () { g.autoFill(); });
@@ -86,6 +96,7 @@
       if (e.key === ' ') { e.preventDefault(); g.togglePause(); }
       else if (e.key === 'Escape') { g.cancelPlacement(); }
       else if (e.key.toLowerCase() === 'f') { g.renderer.fit(); }
+      else if (e.key.toLowerCase() === 'm') { W.Sound.toggle(); self.refreshSound(); }
       else if (e.ctrlKey && e.key.toLowerCase() === 'z') { e.preventDefault(); g.undo(); }
     });
   };
@@ -413,6 +424,16 @@
     const frac = U.clamp(spent / g.budget, 0, 1);
     this.dom.budgetFill.style.width = (frac * 100) + '%';
     this.dom.budgetFill.classList.toggle('full', spent >= g.budget);
+  };
+
+  /* The button reflects the stored preference even in an edition that has no
+   * sounds of its own — the setting is global, and the edition simply has
+   * nothing to play. */
+  UI.prototype.refreshSound = function () {
+    const on = W.Sound.enabled();
+    this.dom.btnSound.textContent = on ? '🔊' : '🔇';
+    this.dom.btnSound.classList.toggle('off', !on);
+    this.dom.btnSound.setAttribute('aria-pressed', on ? 'true' : 'false');
   };
 
   UI.prototype.setPhaseLabel = function (text) {

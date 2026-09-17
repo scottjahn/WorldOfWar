@@ -62,6 +62,7 @@
       turnRate: 3.2,      // homing weapons only
       color: '#ffd98a',
       tracerWidth: 1.6,
+      sfx: null,          // name of this mount's sound in the edition's sound table
       beam: false,        // draw as a lance with a glowing core, not a short streak
       boresight: false,   // fixed to the hull: the platform must turn to aim it
       arc: 0.4,           // boresight only — how far off the bow it will still fire

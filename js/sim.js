@@ -151,6 +151,12 @@
     this.projectiles = [];
     this.effects = [];
     this.decals = [];
+    /* Things that just happened, for anything outside the simulation that wants
+     * to react to them — today that is js/audio.js. Plain data, appended and
+     * never read back here, so a battle plays out identically whether or not
+     * anybody is draining it. The frame loop clears the list each frame; the cap
+     * in emit() is what keeps it bounded if nobody does. */
+    this.events = [];
     this.time = 0;
     this.over = false;
     this.winner = -1;
@@ -233,6 +239,14 @@
         this.effects.push({ kind: 'heal', x: u.x, y: u.y, t: 0, life: 0.6 });
       }
     }
+  };
+
+  /* Beyond this the listener has plainly stopped listening, and one frame of a
+   * hundred-unit firefight is already far more than anything can play. */
+  const MAX_EVENTS = 600;
+
+  Battle.prototype.emit = function (e) {
+    if (this.events.length < MAX_EVENTS) this.events.push(e);
   };
 
   Battle.prototype.aliveUnits = function (team) {
@@ -753,6 +767,7 @@
           kind: 'strike', x: (u.x + tgt.x) / 2, y: (u.y + tgt.y) / 2,
           a: want, t: 0, life: 0.18, size: 5 + d.dmg * 0.06
         });
+        this.emit({ kind: 'fire', x: u.x, y: u.y, def: d });
         continue;
       }
 
@@ -761,6 +776,7 @@
           tgt.hp = Math.min(tgt.maxHp, tgt.hp + d.dmg);
           w.cd = d.cd;
           this.effects.push({ kind: 'heal', x: tgt.x, y: tgt.y, t: 0, life: 0.5 });
+          this.emit({ kind: 'heal', x: tgt.x, y: tgt.y });
         }
         continue;
       }
@@ -846,6 +862,7 @@
     u.recoil = 1;
     u.flash = 1;
     this.effects.push({ kind: 'muzzle', x: sx, y: sy, a: bearing, t: 0, life: 0.09, size: 3 + d.tracerWidth * 2 });
+    this.emit({ kind: 'fire', x: sx, y: sy, def: d });
   };
 
   function velocityOf(u) {
@@ -951,6 +968,7 @@
      * conventional weapon in the game lands well under this. */
     const big = Math.min(200, Math.max(8, d.splash * 0.8 + d.dmg * 0.05));
     this.effects.push({ kind: 'boom', x: x, y: y, t: 0, life: 0.25 + big * 0.004, size: big });
+    this.emit({ kind: 'impact', x: x, y: y, size: big, def: d });
     /* Craters are permanent, so only scar ground that can actually hold one.
      * Shells landing in the sea used to stack into a black hole on the water. */
     if (d.splash > 30 && this.scars && this.decals.length < 260 && this.terrain.passable(LAND, x, y)) {
@@ -999,12 +1017,14 @@
         kind: 'flee', x: u.x, y: u.y, a: away, hdg: u.hdg,
         type: u.type, team: u.team, t: 0, life: 1.6
       });
+      this.emit({ kind: 'death', x: u.x, y: u.y, type: u.type, team: u.team, fled: true });
       return;
     }
 
     const size = 12 + u.radius * 1.4;
     this.effects.push({ kind: 'boom', x: u.x, y: u.y, t: 0, life: 0.5, size: size });
     this.effects.push({ kind: 'smoke', x: u.x, y: u.y, t: 0, life: 2.2, size: size });
+    this.emit({ kind: 'death', x: u.x, y: u.y, type: u.type, team: u.team, fled: false });
     if (this.decals.length < 300) {
       /* Decided by what is under the unit, so aircraft downed over the sea leave
        * foam rather than a burnt-out hull floating on the water. */

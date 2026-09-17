@@ -43,7 +43,7 @@
   /* Laser cannon: fast bolts, tuned for the fighter screen. */
   function laser(def) {
     return Object.assign({
-      kind: 'tracer', name: 'Laser Cannons', speed: 1250, spread: 0.035,
+      kind: 'tracer', name: 'Laser Cannons', sfx: 'laser', speed: 1250, spread: 0.035,
       targets: SHIP, prefersTag: 'fighter', tracerWidth: 1.8
     }, def);
   }
@@ -52,7 +52,7 @@
    * warship, which is the whole point — it exists to clear small craft. */
   function pointDefence(def) {
     return Object.assign({
-      kind: 'tracer', name: 'Point Defence', dmg: 14, pen: 22, range: 420,
+      kind: 'tracer', name: 'Point Defence', sfx: 'pointDefence', dmg: 14, pen: 22, range: 420,
       cd: 0.1, spread: 0.055, speed: 1400, targets: SHIP,
       prefersTag: 'fighter', tracerWidth: 1.2
     }, def);
@@ -61,7 +61,7 @@
   /* Turbolaser: slow, enormous, and aimed at the enemy line of battle. */
   function turbolaser(def) {
     return Object.assign({
-      kind: 'tracer', name: 'Turbolasers', speed: 900, spread: 0.028,
+      kind: 'tracer', name: 'Turbolasers', sfx: 'turbolaser', speed: 900, spread: 0.028,
       targets: SHIP, prefersTag: 'capital', tracerWidth: 3.4
     }, def);
   }
@@ -90,7 +90,7 @@
       weapons: [
         laser({ dmg: 12, pen: 22, range: 330, cd: 0.45, salvo: 2, salvoDelay: 0.08, color: REB }),
         {
-          name: 'Concussion Missiles', kind: 'missile', dmg: 105, pen: 68, range: 430, cd: 5.5,
+          name: 'Concussion Missiles', sfx: 'concussion', kind: 'missile', dmg: 105, pen: 68, range: 430, cd: 5.5,
           salvo: 1, speed: 470, turnRate: 2.4, splash: 16,
           targets: SHIP, onlyTag: 'fighter', color: CONC
         }
@@ -107,7 +107,7 @@
       weapons: [
         laser({ dmg: 14, pen: 26, range: 340, cd: 0.6, salvo: 4, salvoDelay: 0.07, color: REB }),
         {
-          name: 'Proton Torpedoes', kind: 'missile', dmg: 260, pen: 175, range: 560, cd: 7.5,
+          name: 'Proton Torpedoes', sfx: 'torpedo', kind: 'missile', dmg: 260, pen: 175, range: 560, cd: 7.5,
           salvo: 2, salvoDelay: 0.45, speed: 420, turnRate: 2.2, splash: 20,
           targets: SHIP, onlyTag: 'capital', color: PROTON
         }
@@ -125,14 +125,14 @@
       weapons: [
         /* prefersTag cleared: a bomber that fancies fighters flies at the screen
          * instead of the warship its rack is fused for. */
-        laser({ name: 'Nose Cannons', dmg: 12, pen: 20, range: 300, cd: 0.7, salvo: 2, salvoDelay: 0.1, color: REB, prefersTag: null }),
+        laser({ name: 'Nose Cannons', sfx: 'laser', dmg: 12, pen: 20, range: 300, cd: 0.7, salvo: 2, salvoDelay: 0.1, color: REB, prefersTag: null }),
         {
-          name: 'Ion Cannon', kind: 'tracer', dmg: 85, pen: 195, range: 430, cd: 2.4,
+          name: 'Ion Cannon', sfx: 'ion', kind: 'tracer', dmg: 85, pen: 195, range: 430, cd: 2.4,
           salvo: 2, salvoDelay: 0.25, speed: 700, spread: 0.04,
           targets: SHIP, onlyTag: 'capital', color: ION, tracerWidth: 2.6
         },
         {
-          name: 'Proton Torpedoes', kind: 'missile', dmg: 300, pen: 185, range: 590, cd: 7.5,
+          name: 'Proton Torpedoes', sfx: 'torpedo', kind: 'missile', dmg: 300, pen: 185, range: 590, cd: 7.5,
           salvo: 2, salvoDelay: 0.45, speed: 400, turnRate: 2.0, splash: 24,
           targets: SHIP, onlyTag: 'capital', color: PROTON
         }
@@ -147,7 +147,7 @@
         'damaged hull continuously, which pays for itself behind a cruiser and nowhere else. ' +
         'Anything that reaches it kills it.',
       weapons: [
-        { name: 'Repair Rig', kind: 'repair', dmg: 45, range: 210, cd: 1.0, targets: 0, color: '#8effc0' }
+        { name: 'Repair Rig', sfx: 'repair', kind: 'repair', dmg: 45, range: 210, cd: 1.0, targets: 0, color: '#8effc0' }
       ]
     }),
 
@@ -161,12 +161,12 @@
       weapons: [
         laser({ dmg: 18, pen: 24, range: 320, cd: 0.6, salvo: 2, salvoDelay: 0.1, color: REB, prefersTag: null }),
         {
-          name: 'Heavy Ion Cannon', kind: 'tracer', dmg: 150, pen: 225, range: 500, cd: 3.4,
+          name: 'Heavy Ion Cannon', sfx: 'heavyIon', kind: 'tracer', dmg: 150, pen: 225, range: 500, cd: 3.4,
           salvo: 2, salvoDelay: 0.3, speed: 720, spread: 0.035,
           targets: SHIP, onlyTag: 'capital', color: ION, tracerWidth: 3
         },
         {
-          name: 'Proton Torpedoes', kind: 'missile', dmg: 290, pen: 180, range: 560, cd: 8.0,
+          name: 'Proton Torpedoes', sfx: 'torpedo', kind: 'missile', dmg: 290, pen: 180, range: 560, cd: 8.0,
           salvo: 2, salvoDelay: 0.4, speed: 410, turnRate: 2.1, splash: 22,
           targets: SHIP, onlyTag: 'capital', color: PROTON
         }
@@ -182,11 +182,11 @@
         'to be somewhere else by the time the reply arrives.',
       weapons: [
         laser({
-          name: 'Quad Laser Turrets', dmg: 26, pen: 42, range: 400, cd: 0.5,
+          name: 'Quad Laser Turrets', sfx: 'quadLaser', dmg: 26, pen: 42, range: 400, cd: 0.5,
           salvo: 3, salvoDelay: 0.09, color: REB, tracerWidth: 2.2, prefersTag: null
         }),
         {
-          name: 'Concussion Missiles', kind: 'missile', dmg: 180, pen: 96, range: 480, cd: 6.5,
+          name: 'Concussion Missiles', sfx: 'concussion', kind: 'missile', dmg: 180, pen: 96, range: 480, cd: 6.5,
           salvo: 2, salvoDelay: 0.35, speed: 440, turnRate: 2.6, splash: 20,
           targets: SHIP, color: CONC
         }
@@ -202,7 +202,7 @@
         'it were not there.',
       weapons: [
         {
-          name: 'Heavy Ion Cannon', kind: 'tracer', dmg: 280, pen: 285, range: 920, cd: 4.2,
+          name: 'Heavy Ion Cannon', sfx: 'heavyIon', kind: 'tracer', dmg: 280, pen: 285, range: 920, cd: 4.2,
           speed: 780, spread: 0.02, splash: 24,
           targets: SHIP, onlyTag: 'capital', color: ION, tracerWidth: 4
         },
@@ -234,7 +234,7 @@
       weapons: [
         turbolaser({ dmg: 205, pen: 122, range: 720, cd: 3.2, salvo: 2, salvoDelay: 0.3, splash: 22, color: REB }),
         pointDefence({ dmg: 15, pen: 24, range: 440, cd: 0.09, color: REB }),
-        pointDefence({ name: 'Escort Battery', dmg: 15, pen: 24, range: 440, cd: 0.09, color: REB })
+        pointDefence({ name: 'Escort Battery', sfx: 'pointDefence', dmg: 15, pen: 24, range: 440, cd: 0.09, color: REB })
       ]
     }),
 
@@ -247,12 +247,12 @@
         'so it wants a screen in front of it at all times.',
       weapons: [
         {
-          name: 'Assault Torpedoes', kind: 'missile', dmg: 330, pen: 190, range: 840, cd: 7.0,
+          name: 'Assault Torpedoes', sfx: 'torpedo', kind: 'missile', dmg: 330, pen: 190, range: 840, cd: 7.0,
           salvo: 3, salvoDelay: 0.4, speed: 400, turnRate: 1.9, splash: 32,
           targets: SHIP, onlyTag: 'capital', color: PROTON
         },
         {
-          name: 'Ion Batteries', kind: 'tracer', dmg: 110, pen: 195, range: 620, cd: 2.8,
+          name: 'Ion Batteries', sfx: 'heavyIon', kind: 'tracer', dmg: 110, pen: 195, range: 620, cd: 2.8,
           salvo: 2, salvoDelay: 0.28, speed: 760, spread: 0.03,
           targets: SHIP, onlyTag: 'capital', color: ION, tracerWidth: 2.8
         },
@@ -270,11 +270,11 @@
       squadron: { type: 'xwingw', count: 4, respawn: 18, reserve: 4 },
       weapons: [
         turbolaser({
-          name: 'Heavy Turbolasers', dmg: 345, pen: 168, range: 1050, cd: 5.0,
+          name: 'Heavy Turbolasers', sfx: 'heavyTurbolaser', dmg: 345, pen: 168, range: 1050, cd: 5.0,
           salvo: 3, salvoDelay: 0.3, splash: 38, color: REB, tracerWidth: 4.2
         }),
         {
-          name: 'Ion Batteries', kind: 'tracer', dmg: 140, pen: 205, range: 800, cd: 3.2,
+          name: 'Ion Batteries', sfx: 'heavyIon', kind: 'tracer', dmg: 140, pen: 205, range: 800, cd: 3.2,
           salvo: 2, salvoDelay: 0.3, speed: 760, spread: 0.03,
           targets: SHIP, onlyTag: 'capital', color: ION, tracerWidth: 3
         },
@@ -293,7 +293,7 @@
       weapons: [
         laser({ dmg: 14, pen: 26, range: 340, cd: 0.6, salvo: 4, salvoDelay: 0.07, color: REB }),
         {
-          name: 'Proton Torpedoes', kind: 'missile', dmg: 260, pen: 175, range: 560, cd: 7.5,
+          name: 'Proton Torpedoes', sfx: 'torpedo', kind: 'missile', dmg: 260, pen: 175, range: 560, cd: 7.5,
           salvo: 2, salvoDelay: 0.45, speed: 420, turnRate: 2.2, splash: 20,
           targets: SHIP, onlyTag: 'capital', color: PROTON
         }
@@ -332,7 +332,7 @@
       weapons: [
         laser({ dmg: 10, pen: 16, range: 280, cd: 0.6, salvo: 2, salvoDelay: 0.09, color: IMP, prefersTag: null }),
         {
-          name: 'Proton Bombs', kind: 'missile', dmg: 330, pen: 190, range: 500, cd: 7.5,
+          name: 'Proton Bombs', sfx: 'torpedo', kind: 'missile', dmg: 330, pen: 190, range: 500, cd: 7.5,
           salvo: 3, salvoDelay: 0.35, speed: 380, turnRate: 1.9, splash: 30,
           targets: SHIP, onlyTag: 'capital', color: PROTON
         }
@@ -349,7 +349,7 @@
       weapons: [
         laser({ dmg: 16, pen: 28, range: 340, cd: 0.55, salvo: 2, salvoDelay: 0.08, color: IMP }),
         {
-          name: 'Heavy Concussion Missiles', kind: 'missile', dmg: 195, pen: 108, range: 520, cd: 6.0,
+          name: 'Heavy Concussion Missiles', sfx: 'concussion', kind: 'missile', dmg: 195, pen: 108, range: 520, cd: 6.0,
           salvo: 2, salvoDelay: 0.35, speed: 460, turnRate: 2.8, splash: 22,
           targets: SHIP, color: CONC
         }
@@ -363,7 +363,7 @@
       desc: 'A staff shuttle pressed into fleet-service work, running repair crews to whatever ' +
         'is worst hit nearby. Quicker off the mark than the Rebel tender and half as tough.',
       weapons: [
-        { name: 'Repair Crews', kind: 'repair', dmg: 40, range: 195, cd: 1.0, targets: 0, color: '#8effc0' }
+        { name: 'Repair Crews', sfx: 'repair', kind: 'repair', dmg: 40, range: 195, cd: 1.0, targets: 0, color: '#8effc0' }
       ]
     }),
 
@@ -376,7 +376,7 @@
         'fighting is going to come to it.',
       weapons: [
         turbolaser({
-          name: 'Station Turbolasers', dmg: 300, pen: 155, range: 960, cd: 4.4,
+          name: 'Station Turbolasers', sfx: 'heavyTurbolaser', dmg: 300, pen: 155, range: 960, cd: 4.4,
           salvo: 2, salvoDelay: 0.28, splash: 34, color: IMP, tracerWidth: 4
         }),
         pointDefence({ dmg: 14, pen: 23, range: 400, cd: 0.11, color: IMP })
@@ -392,7 +392,7 @@
         'has already spent everything on Star Destroyers.',
       squadron: { type: 'tiew', count: 2, respawn: 22, reserve: 2 },
       weapons: [
-        turbolaser({ name: 'Light Turbolasers', dmg: 105, pen: 76, range: 520, cd: 2.6, splash: 12, color: IMP, tracerWidth: 2.6 }),
+        turbolaser({ name: 'Light Turbolasers', sfx: 'turbolaser', dmg: 105, pen: 76, range: 520, cd: 2.6, splash: 12, color: IMP, tracerWidth: 2.6 }),
         pointDefence({ dmg: 13, pen: 21, range: 380, cd: 0.12, color: IMP })
       ]
     }),
@@ -407,12 +407,12 @@
       weapons: [
         laser({ dmg: 18, pen: 34, range: 370, cd: 0.5, salvo: 4, salvoDelay: 0.06, color: IMP, tracerWidth: 2 }),
         {
-          name: 'Ion Cannon', kind: 'tracer', dmg: 95, pen: 200, range: 440, cd: 3.0,
+          name: 'Ion Cannon', sfx: 'ion', kind: 'tracer', dmg: 95, pen: 200, range: 440, cd: 3.0,
           salvo: 2, salvoDelay: 0.25, speed: 720, spread: 0.035,
           targets: SHIP, onlyTag: 'capital', color: ION, tracerWidth: 2.6
         },
         {
-          name: 'Concussion Missiles', kind: 'missile', dmg: 165, pen: 92, range: 480, cd: 6.0,
+          name: 'Concussion Missiles', sfx: 'concussion', kind: 'missile', dmg: 165, pen: 92, range: 480, cd: 6.0,
           salvo: 2, salvoDelay: 0.3, speed: 470, turnRate: 3.0, splash: 18,
           targets: SHIP, color: CONC
         }
@@ -429,7 +429,7 @@
       weapons: [
         turbolaser({ dmg: 150, pen: 96, range: 600, cd: 2.5, salvo: 2, salvoDelay: 0.25, splash: 16, color: IMP }),
         {
-          name: 'Missile Tubes', kind: 'missile', dmg: 175, pen: 95, range: 640, cd: 5.5,
+          name: 'Missile Tubes', sfx: 'concussion', kind: 'missile', dmg: 175, pen: 95, range: 640, cd: 5.5,
           salvo: 3, salvoDelay: 0.3, speed: 470, turnRate: 3.0, splash: 20,
           targets: SHIP, onlyTag: 'fighter', color: CONC
         },
@@ -460,7 +460,7 @@
       weapons: [
         turbolaser({ dmg: 265, pen: 145, range: 900, cd: 4.4, salvo: 2, salvoDelay: 0.3, splash: 32, color: IMP, tracerWidth: 3.8 }),
         {
-          name: 'Concussion Tubes', kind: 'missile', dmg: 215, pen: 118, range: 760, cd: 6.5,
+          name: 'Concussion Tubes', sfx: 'concussion', kind: 'missile', dmg: 215, pen: 118, range: 760, cd: 6.5,
           salvo: 4, salvoDelay: 0.28, speed: 430, turnRate: 2.2, splash: 26,
           targets: SHIP, prefersTag: 'capital', color: CONC
         },
@@ -478,16 +478,16 @@
       squadron: { type: 'tiew', count: 6, respawn: 14, reserve: 6 },
       weapons: [
         turbolaser({
-          name: 'Heavy Turbolasers', dmg: 385, pen: 178, range: 1150, cd: 5.2,
+          name: 'Heavy Turbolasers', sfx: 'heavyTurbolaser', dmg: 385, pen: 178, range: 1150, cd: 5.2,
           salvo: 3, salvoDelay: 0.3, splash: 42, color: IMP, tracerWidth: 4.4
         }),
         {
-          name: 'Ion Batteries', kind: 'tracer', dmg: 145, pen: 210, range: 850, cd: 3.4,
+          name: 'Ion Batteries', sfx: 'heavyIon', kind: 'tracer', dmg: 145, pen: 210, range: 850, cd: 3.4,
           salvo: 2, salvoDelay: 0.3, speed: 760, spread: 0.03,
           targets: SHIP, onlyTag: 'capital', color: ION, tracerWidth: 3
         },
         pointDefence({ dmg: 16, pen: 26, range: 460, cd: 0.1, color: IMP }),
-        pointDefence({ name: 'Quad Batteries', dmg: 16, pen: 26, range: 460, cd: 0.1, color: IMP })
+        pointDefence({ name: 'Quad Batteries', sfx: 'pointDefence', dmg: 16, pen: 26, range: 460, cd: 0.1, color: IMP })
       ]
     }),
 
@@ -509,18 +509,18 @@
         {
           /* Fixed in the bow — the dish is the emplacement, so the station has
            * to swing its whole mass onto a target before it can fire. */
-          name: 'Superlaser', kind: 'tracer', dmg: 9000, pen: 500, range: 1600, cd: 20,
+          name: 'Superlaser', sfx: 'superlaser', kind: 'tracer', dmg: 9000, pen: 500, range: 1600, cd: 20,
           speed: 1100, spread: 0.008, splash: 150, beam: true,
           boresight: true, arc: 0.35,
           targets: SHIP, onlyTag: 'capital', color: '#9dff86', tracerWidth: 9
         },
         turbolaser({
-          name: 'Heavy Turbolasers', dmg: 300, pen: 150, range: 1000, cd: 3.2,
+          name: 'Heavy Turbolasers', sfx: 'heavyTurbolaser', dmg: 300, pen: 150, range: 1000, cd: 3.2,
           salvo: 4, salvoDelay: 0.22, splash: 30, color: IMP, tracerWidth: 3.6, prefersTag: null
         }),
-        pointDefence({ name: 'Surface Batteries', dmg: 24, pen: 34, range: 650, cd: 0.06, color: IMP }),
-        pointDefence({ name: 'Equatorial Batteries', dmg: 24, pen: 34, range: 650, cd: 0.06, color: IMP }),
-        pointDefence({ name: 'Trench Batteries', dmg: 24, pen: 34, range: 650, cd: 0.06, color: IMP })
+        pointDefence({ name: 'Surface Batteries', sfx: 'pointDefence', dmg: 24, pen: 34, range: 650, cd: 0.06, color: IMP }),
+        pointDefence({ name: 'Equatorial Batteries', sfx: 'pointDefence', dmg: 24, pen: 34, range: 650, cd: 0.06, color: IMP }),
+        pointDefence({ name: 'Trench Batteries', sfx: 'pointDefence', dmg: 24, pen: 34, range: 650, cd: 0.06, color: IMP })
       ]
     }),
 

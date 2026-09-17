@@ -116,6 +116,7 @@ reliable path, and it is required for offline install anyway.
 | Pan | Drag | Drag |
 | Zoom | Scroll wheel | Pinch |
 | Pause / resume | Space | ❚❚ button |
+| Sound on / off | M | 🔊 button |
 
 Pick a unit from the roster, then tap inside your highlighted deployment zone. The dashed
 ring that follows the cursor is that unit's weapon range, which makes reach differences
@@ -249,10 +250,16 @@ js/version.js         build identifier, shared by the page and the service worke
 js/dmath.js           engine-independent trig, so replays reproduce on any browser
 js/util.js            math, seeded RNG, value noise, binary heap, spatial hash
 js/units.js           unit definition machinery and the active catalogue
+js/audio.js           procedural Web Audio synthesiser, battle mixer, sound toggle
+js/sounds-common.js   the two sound builders, and the UI cues every edition shares
 js/roster-earth.js    Earth's army list
+js/sounds-earth.js    Earth: gunpowder and jet fuel
 js/roster-animals.js  the Animals army list, split into two factions
+js/sounds-animals.js  Animals: teeth, claws and a lot of shouting
 js/roster-space.js    the Space army list, split into two navies
+js/sounds-space.js    Space: blaster bolts, ion buzz and the superlaser
 js/roster-prehistoric.js  the Prehistoric army list, shared by both herds
+js/sounds-prehistoric.js  Prehistoric: everything an octave lower than it should be
 js/editions.js        what each edition is: roster, maps, budgets, side names, defeat style
 js/terrain.js         map generation, passability, connectivity, A* pathfinding
 js/sim.js             the battle: targeting, movement, weapons, projectiles, damage
@@ -274,8 +281,10 @@ sw.js                 offline support (network-first, so edits always take effec
    `bucketNames` collapse and rename the roster tabs.
 3. Add a wire list to `WIRE` in `js/share.js` and append the id to `EDITION_WIRE`, so replay
    links can name its units.
-4. Add the script tags to `index.html` and the paths to `ASSETS` in `sw.js`.
-5. Bump the major version in `js/version.js`.
+4. Write `js/sounds-<id>.js` and point the entry's `sounds` at it. Without one the edition
+   plays no sound at all, which is a legal thing for it to be.
+5. Add the script tags to `index.html` and the paths to `ASSETS` in `sw.js`.
+6. Bump the major version in `js/version.js`.
 
 If the edition needs its own AI shopping lists, add them in `js/ai.js` and extend
 `setEdition` there.
@@ -328,6 +337,53 @@ the noise pass, which would otherwise paint straight over it, and before the dep
 are scrubbed clear, so a map cannot accidentally wall its own armies in. Push an entry onto
 `terrain.props` for anything the renderer should draw as one object rather than as tiles;
 that is how a planet comes out as a sphere instead of a few hundred boulders.
+
+### Sound
+
+There are no audio files. Every sound is synthesised at load time from noise buffers and
+oscillators, for the same reason the terrain and the unit artwork are drawn rather than
+loaded: the whole game stays a handful of text files the service worker caches in one pass,
+and a new gun costs a few numbers rather than a trip to a sample library.
+
+Sound is per-edition, and each edition has its own table: a set of named recipes — each a
+stack of noise and tone layers with a filter sweep and an envelope — plus three resolvers
+that map a weapon, an explosion size and a destroyed unit onto one of them.
+`js/sounds-common.js` holds the two builders and the handful of UI cues that mean the same
+thing in every world; the call to battle and the three ways a battle can end belong to the
+edition.
+
+| Edition | sounds like |
+| --- | --- |
+| **Earth** | Gunpowder. Guns are a pressure release that decays; rockets are a motor lighting and leaving. The 16-inch triple is not allowed to sound like anything else. |
+| **Animals** | Voices over impacts rather than bangs — no projectiles exist. Nothing dies, so a defeat is a yelp going away from you. The rattlesnake really does rattle. |
+| **Space** | One trick, varied: the blaster bolt is a falling pitch sweep, high and fast for a fighter, an octave and a half down and slow for a turbolaser. Ion weapons buzz instead, because they are the one thing on the field that is not a bolt. |
+| **Prehistoric** | The same melee shapes as Animals, an octave lower and several times longer. Marine reptiles are heard through water; the Tyrannosaurus is meant to be recognisable from off screen. |
+
+Giving a weapon its own voice is one word on its definition in the roster:
+
+```js
+{ name: '120mm Gun', sfx: 'cannonHeavy', dmg: 220, ... }
+```
+
+Anything without an `sfx` falls back to a voice for its `kind`, so a new unit is never
+accidentally silent.
+
+The simulation never calls into the audio layer. It appends plain records to `battle.events`
+and the frame loop hands that list to the mixer, so a battle plays out identically whether
+sound is on, off, or unsupported by the browser — which is what keeps replay links honest.
+
+The mixer is what makes a hundred-unit firefight listenable. Each frame it places every event
+against the camera (pan from screen position, volume and a lowpass cutoff from how far
+off-screen and how far zoomed out it is), drops anything well outside the viewport, then
+groups what is left by voice: twenty MG teams firing on the same tick become one sound
+slightly louder rather than twenty voices fighting each other. Loud events are allocated
+slots first, so an artillery shell is never dropped in favour of the rifle fire around it. In
+practice this turns roughly 240 raw events a second at 4× speed into about 50 voices.
+
+A low ambient bed runs under a battle in progress and fades out under the pause and at the
+result — wind through long grass in Animals, hot air over a floodplain in Prehistoric, and in
+Space a held 41 Hz drone, the only bed in the game that is a pitch rather than weather. The
+🔊 button (or **M**) mutes everything and the choice is remembered.
 
 ### Deterministic maths
 
@@ -493,4 +549,5 @@ than by rebuilding the app.
   `js/share.js`) but reordering or removing one silently invalidates every existing link.
 - Changing unit stats changes how old links play out. The link stores the battle, not the
   balance patch it was fought under.
-- No sound.
+- Every sound is synthesised, so nothing sounds quite like the real thing. That is the
+  trade for a game with no binary assets in it.
