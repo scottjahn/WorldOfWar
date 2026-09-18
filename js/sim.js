@@ -24,7 +24,28 @@
   const ASW_DETECT = 620;        // units with sonar
   const PASSIVE_DETECT = 150;    // everything else
 
+  /* Wreckage. MAX_HULKS bounds what is still being animated; MAX_DECALS bounds
+   * the painted layer a burnt-out hull retires into, and is generous because
+   * that layer is baked once and then costs nothing per frame. Craters stop far
+   * short of it so a heavily shelled field still has room for its wrecks. */
+  const MAX_HULKS = 220;
+  const MAX_DECALS = 800;
+  const MAX_CRATER_DECALS = 280;
+  const BURN_TIME = 17;          // seconds a downed hull burns before going cold
+  const SINK_TIME = 4.5;         // seconds a holed hull takes to go under
+
   let nextId = 1;
+
+  /* Cosmetic variation that must not touch the battle's random stream: every
+   * wreck wants its own flame timing and tumble, but drawing those from
+   * this.rand would shift the stream and change the outcome of every replay
+   * link recorded before wreckage existed. Hashing where the unit died gives
+   * the same variety for free, and reproduces exactly. */
+  function hashPoint(x, y, z) {
+    let h = (Math.round(x * 4) * 73856093) ^ (Math.round(y * 4) * 19349663) ^ (Math.round(z) * 83492791);
+    h ^= h >>> 13;
+    return h >>> 0;
+  }
 
   /* ============================ Unit ============================ */
 
@@ -151,6 +172,13 @@
     this.projectiles = [];
     this.effects = [];
     this.decals = [];
+    /* Wreckage still warm enough to need animating. Deliberately not in `units`:
+     * a hulk is scenery, and putting it there would mean auditing every loop
+     * that walks the army for one more reason to skip an entry. A wreck on the
+     * ground burns out after a while and is handed to the decal layer, which is
+     * a baked canvas — so a long battle keeps every wreck it made without the
+     * per-frame cost growing. */
+    this.hulks = [];
     /* Things that just happened, for anything outside the simulation that wants
      * to react to them — today that is js/audio.js. Plain data, appended and
      * never read back here, so a battle plays out identically whether or not
@@ -177,6 +205,10 @@
     this.defeat = (ed && ed.defeat) || 'destroy';
     /* Whether the battlefield holds a crater. Space does not. */
     this.scars = !ed || ed.scars !== false;
+    /* No oxygen to carry a fire and no ground to come to rest on: out here a
+     * killed hull drifts, glowing where it was holed, rather than burning where
+     * it fell. */
+    this.vacuum = !!(ed && ed.look === 'space');
     this.words = (ed && ed.words) || {};
 
     const self = this;
@@ -295,6 +327,7 @@
     this.servicePathQueue();
     this.stepProjectiles(dt);
     this.stepEffects(dt);
+    this.stepHulks(dt);
     this.checkVictory();
   };
 
@@ -971,7 +1004,7 @@
     this.emit({ kind: 'impact', x: x, y: y, size: big, def: d });
     /* Craters are permanent, so only scar ground that can actually hold one.
      * Shells landing in the sea used to stack into a black hole on the water. */
-    if (d.splash > 30 && this.scars && this.decals.length < 260 && this.terrain.passable(LAND, x, y)) {
+    if (d.splash > 30 && this.scars && this.decals.length < MAX_CRATER_DECALS && this.terrain.passable(LAND, x, y)) {
       this.decals.push({ x: x, y: y, r: d.splash * 0.55, kind: 'crater' });
     }
   };
@@ -1025,12 +1058,78 @@
     this.effects.push({ kind: 'boom', x: u.x, y: u.y, t: 0, life: 0.5, size: size });
     this.effects.push({ kind: 'smoke', x: u.x, y: u.y, t: 0, life: 2.2, size: size });
     this.emit({ kind: 'death', x: u.x, y: u.y, type: u.type, team: u.team, fled: false });
-    if (this.decals.length < 300) {
-      /* Decided by what is under the unit, so aircraft downed over the sea leave
-       * foam rather than a burnt-out hull floating on the water. */
-      const onLand = this.terrain.passable(LAND, u.x, u.y);
-      this.decals.push({ x: u.x, y: u.y, r: u.radius, kind: onLand ? 'wreck' : 'foam', a: u.hdg, team: u.team, shape: u.type.shape });
+    this.addHulk(u);
+  };
+
+  /* Turns a killed unit into the wreck of itself.
+   *
+   * What that wreck does is decided by what was underneath it, which is why an
+   * aircraft downed over the sea goes under rather than burning on the water,
+   * and why nothing burns in vacuum at all. */
+  Battle.prototype.addHulk = function (u) {
+    /* Only bites on a field covered in wrecks that are all still burning: a
+     * cold one has already left this list for the decal layer. */
+    if (this.hulks.length >= MAX_HULKS) this.hulks.shift();
+
+    const onLand = this.terrain.passable(LAND, u.x, u.y);
+    const mode = this.vacuum ? 'drift' : (onLand ? 'burn' : 'sink');
+    /* How much of its last velocity the wreck keeps. Nothing slows it in
+     * vacuum, an aircraft carries its speed into the ground for a moment, and a
+     * vehicle simply stops where it was standing. */
+    const carry = this.vacuum ? 0.3 : (u.domain === AIR ? 0.55 : 0);
+    /* u.speed and u.hdg are maintained by every move type; u.vx/u.vy are not. */
+    const sp = Math.min(u.speed * carry, this.vacuum ? 18 : 400);
+    const seed = hashPoint(u.x, u.y, u.type.radius);
+
+    this.hulks.push({
+      x: u.x, y: u.y, hdg: u.hdg, turret: u.turret,
+      type: u.type, team: u.team, r: u.radius,
+      mode: mode, t: 0,
+      life: mode === 'sink' ? SINK_TIME : BURN_TIME,
+      vx: M.cos(u.hdg) * sp, vy: M.sin(u.hdg) * sp,
+      /* A holed hull tumbles around whatever axis the hit put it on. */
+      spin: this.vacuum ? (((seed & 15) - 7.5) * 0.016) : 0,
+      seed: seed
+    });
+  };
+
+  /* Ages the wreckage. On a planet a hull burns itself out and is then baked
+   * into the decal layer and dropped from here, so what is left costs nothing
+   * per frame. In vacuum there is no such layer — nothing holds still long
+   * enough to bake — so those hulks stay here and drift for the whole battle. */
+  Battle.prototype.stepHulks = function (dt) {
+    const list = this.hulks;
+    let w = 0;
+    for (let i = 0; i < list.length; i++) {
+      const h = list[i];
+      h.t += dt;
+
+      if (h.vx || h.vy) {
+        h.x += h.vx * dt;
+        h.y += h.vy * dt;
+        /* A crash slide stops almost at once; a drifting hull barely slows. */
+        const k = Math.max(0, 1 - (this.vacuum ? 0.05 : 4.5) * dt);
+        h.vx *= k; h.vy *= k;
+      }
+      if (h.spin) h.hdg += h.spin * dt;
+
+      if (h.mode === 'drift' || h.t < h.life) { list[w++] = h; continue; }
+
+      /* Retired: the wreck stops being a live object and becomes ground cover.
+       * A burnt-out hull is painted where it lies; a sunk one leaves foam with
+       * its shadow somewhere below it. The ground is checked again rather than
+       * trusted from the kill: an aircraft that came down on the shoreline can
+       * have slid into the water while it burned. */
+      if (this.decals.length < MAX_DECALS) {
+        const ashore = h.mode === 'burn' && this.terrain.passable(LAND, h.x, h.y);
+        this.decals.push({
+          kind: ashore ? 'hull' : 'foam',
+          x: h.x, y: h.y, r: h.r, a: h.hdg, turret: h.turret,
+          team: h.team, type: h.type, seed: h.seed
+        });
+      }
     }
+    list.length = w;
   };
 
   Battle.prototype.stepEffects = function (dt) {

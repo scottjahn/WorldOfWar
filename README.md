@@ -154,6 +154,32 @@ draws a new seed, so you still get variety when you want it.
 
 The guarantee holds across devices and browsers too — see *Deterministic maths* below.
 
+### What the fight leaves behind
+
+In the editions where a beaten unit dies — **Earth** and **Space** — the wreck stays on the
+field as the thing it was. Not a generic scorch mark: the same silhouette, charred, with the
+holes torn in it, the turret slewed to wherever the hit left it and nothing aboard still
+running. Engine bells go dark, a jet's efflux stops, a helicopter's rotor disc disappears.
+Whose it was is still readable at a glance, because a trace of the team colour survives the
+burning. By the end of a long battle you can read where the fighting actually happened.
+
+What the wreck does next is decided by what was underneath it, not by what it was:
+
+| | |
+| --- | --- |
+| **On the ground** | Burns for about 17 seconds, throwing flame and a smoke column, then goes cold and stays where it fell for the rest of the battle. An aircraft carries its speed into the ground for a moment first. |
+| **On water** | Rolls over and slips under in about 4 seconds, burning fuel on the surface while there is still hull above it, and leaves foam with its hull as a shadow below. |
+| **In vacuum** | Nothing burns without oxygen and nothing comes to rest. A Space hulk drifts and tumbles, venting from the breach, its holes glowing for a quarter of a minute before they cool to nothing. |
+
+**Animals** and **Prehistoric** never produce any of this — a beaten animal turns tail and
+runs, so there is nothing to leave.
+
+The cost of keeping every wreck is paid once. A hull that has finished burning stops being a
+live object and is painted into the same baked layer that holds craters, so the field can
+carry the whole battle's wreckage without the frame cost growing with it. Vacuum is the
+exception — a drifting hulk cannot be baked anywhere — so Space keeps its hulks live and caps
+them instead.
+
 ### Replay links
 
 The result screen carries a link back to the battle you just watched. Anyone who opens it
@@ -277,8 +303,10 @@ sw.js                 offline support (network-first, so edits always take effec
    else, plus `faction: 0 | 1` on each unit if the two sides field different things.
 2. Add an entry to `EDITIONS` in `js/editions.js`: roster, maps (each with its own `water`
    shaper), field size in tiles, budgets, side names, and `defeat: 'destroy' | 'flee'`.
-   `look: 'space'` swaps the renderer to a starfield palette; `singleDomain` and
-   `bucketNames` collapse and rename the roster tabs.
+   `'destroy'` is also what leaves wreckage on the field; `'flee'` leaves nothing.
+   `look: 'space'` swaps the renderer to a starfield palette — and, for wreckage, means
+   vacuum: hulks drift and cool instead of burning. `singleDomain` and `bucketNames`
+   collapse and rename the roster tabs.
 3. Add a wire list to `WIRE` in `js/share.js` and append the id to `EDITION_WIRE`, so replay
    links can name its units.
 4. Write `js/sounds-<id>.js` and point the entry's `sounds` at it. Without one the edition
@@ -298,6 +326,13 @@ and filtered to its faction.
 
 Weapons with `kind: 'melee'` resolve on contact with no projectile, and their `range` is
 reach measured between the two bodies rather than between centres.
+
+A new `shape` gets wreckage for free: the same drawing routine is used dead, with a charred
+palette and the hull broken up over the top. The one thing to get right is that any detail
+that is only lit because something is *running* — an engine bell, an exhaust plume, a rotor
+disc — should be drawn from the `LOOK` table in `js/render.js` rather than from a colour
+literal. `drawHulkBody` swaps that table for the dead one, so a shape that uses it cannot
+forget to switch its engines off.
 
 A bomb mount with `carpet: <spacing>` lays its salvo along the flight track instead of on the
 target: the first bomb lands on the target and each one after it that much further along the

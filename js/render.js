@@ -486,6 +486,42 @@
     return 'rgb(' + r + ',' + gg + ',' + b + ')';
   }
 
+  /* Details that are only lit because something is running — engine bells, a
+   * jet's efflux, the blur of a rotor. Shapes read them from LOOK rather than
+   * from a literal, so drawing a wreck is a matter of swapping the table for
+   * the dead one: no shape has to know it might be drawn as wreckage, and none
+   * of them can forget. */
+  const LIT = {
+    exhaust: 'rgba(200,232,255,0.7)',
+    plume: 'rgba(255,190,120,0.55)',
+    rotor: 'rgba(225,240,255,0.28)',
+    rotorDisc: 'rgba(225,240,255,0.13)',
+    prop: 'rgba(220,235,255,0.35)'
+  };
+  const DEAD = {
+    exhaust: 'rgba(44,48,56,0.8)',
+    plume: 'rgba(60,52,46,0.35)',
+    /* Bent blades, and no disc at all: the swept circle is the one thing that
+     * only exists while the rotor is turning. */
+    rotor: 'rgba(148,156,166,0.16)',
+    rotorDisc: 'rgba(0,0,0,0)',
+    prop: 'rgba(148,156,166,0.22)'
+  };
+  let LOOK = LIT;
+
+  /* Blend two hex colours; `t` is how much of `b`. Returns hex so the result
+   * can be fed straight back in, which is how a wreck's palette is built up:
+   * charred base, a trace of team colour, then however much heat is left. */
+  function mix(a, b, t) {
+    const na = parseInt(a.slice(1, 7), 16), nb = parseInt(b.slice(1, 7), 16);
+    let out = 0;
+    for (let sh = 16; sh >= 0; sh -= 8) {
+      const v = Math.round(((na >> sh) & 255) * (1 - t) + ((nb >> sh) & 255) * t);
+      out = (out << 8) | U.clamp(v, 0, 255);
+    }
+    return '#' + ('000000' + (out >>> 0).toString(16)).slice(-6);
+  }
+
   /* ---------------------------- main draw -------------------------- */
 
   Renderer.prototype.draw = function (state, dt) {
@@ -612,27 +648,37 @@
         g.fillStyle = cg;
         g.beginPath(); g.arc(d.x, d.y, d.r, 0, U.TAU); g.fill();
       } else if (d.kind === 'foam') {
+        /* Something went down here. If the simulation said what, its hull is
+         * still under there — dim, and a little further on than the foam. */
+        if (d.type) {
+          g.save();
+          g.globalAlpha = 0.45;
+          /* Sitting a little further down the screen than the foam, so it is
+           * not entirely hidden under it. */
+          g.translate(d.x, d.y + d.r * 0.55);
+          g.scale(0.9, 0.68);
+          drawHulkBody(g, d.type, d.r, d.a || 0, d.turret || 0, d.seed || 0, SUNK);
+          g.restore();
+        }
         const fg = g.createRadialGradient(d.x, d.y, 0, d.x, d.y, d.r * 1.8);
         fg.addColorStop(0, 'rgba(206,230,244,0.22)');
         fg.addColorStop(0.6, 'rgba(206,230,244,0.12)');
         fg.addColorStop(1, 'rgba(206,230,244,0)');
         g.fillStyle = fg;
         g.beginPath(); g.arc(d.x, d.y, d.r * 1.8, 0, U.TAU); g.fill();
-      } else {
-        /* Burnt-out hull: scorch halo, charred body, a hint of the team colour left. */
+      } else if (d.kind === 'hull') {
+        /* A wreck that has finished burning. Painted here exactly as it was
+         * being drawn a frame ago in the live layer, so the handover is
+         * invisible — and from now on it costs nothing to keep on the field. */
         g.translate(d.x, d.y);
-        g.rotate(d.a || 0);
         const scorch = g.createRadialGradient(0, 0, d.r * 0.3, 0, 0, d.r * 2.1);
-        scorch.addColorStop(0, 'rgba(18,14,11,0.42)');
+        scorch.addColorStop(0, 'rgba(18,14,11,0.45)');
         scorch.addColorStop(1, 'rgba(18,14,11,0)');
         g.fillStyle = scorch;
         g.beginPath(); g.arc(0, 0, d.r * 2.1, 0, U.TAU); g.fill();
-        g.fillStyle = 'rgba(46,38,33,0.85)';
-        roundRect(g, -d.r, -d.r * 0.6, d.r * 2, d.r * 1.2, 2);
-        g.fill();
-        /* A hint of the team colour left in the burnt-out hull. */
-        g.fillStyle = d.team === 0 ? 'rgba(104,62,54,0.6)' : 'rgba(58,80,104,0.6)';
-        g.fillRect(-d.r * 0.45, -d.r * 0.3, d.r * 0.9, d.r * 0.6);
+        g.globalAlpha = 0.94;
+        drawHulkBody(g, d.type, d.r, d.a || 0, d.turret || 0, d.seed || 0,
+          hulkPalette(d.team, false, 0));
       }
       g.restore();
     }
@@ -705,6 +751,9 @@
       ctx.stroke();
       ctx.restore();
     }
+
+    /* Wreckage goes under everything still fighting. */
+    this.drawHulks(ctx, battle, view);
 
     /* Aircraft shadows sell the altitude difference. */
     for (let i = 0; !space && i < units.length; i++) {
@@ -915,6 +964,249 @@
     ctx.restore();
   };
 
+  /* ---------------------------- wreckage --------------------------- */
+
+  /* Editions where a beaten unit dies leave the thing itself on the field: the
+   * same silhouette, burnt through and plainly not going anywhere. Editions
+   * where it runs away instead — Animals, Prehistoric — never produce a hulk,
+   * so none of this ever runs for them.
+   *
+   * Three states, decided by where the unit died rather than by what it was:
+   * burning on the ground, going under the water, or drifting in vacuum, where
+   * there is no oxygen for a fire and nothing to come to rest on. */
+
+  const CHARRED = { main: '#342d28', dark: '#1e1a17', light: '#544940' };
+  const COLD_HULL = { main: '#3c424a', dark: '#22262c', light: '#5a626c' };
+  /* Darker than the water it is lying in, so a sunk hull reads as a shadow
+   * under the surface rather than disappearing into the blue. */
+  const SUNK = { main: '#122029', dark: '#0a141c', light: '#1b2e39' };
+
+  /* Enough team colour left to read the field at a glance, over a body that is
+   * plainly wrecked. `heat` glows the hull through the soot while it is still
+   * hot, and drops to 0 as it cools. */
+  function hulkPalette(team, vacuum, heat) {
+    const base = vacuum ? COLD_HULL : CHARRED;
+    const tc = TEAM[team].dark;
+    let main = mix(base.main, tc, 0.17);
+    let dark = mix(base.dark, tc, 0.1);
+    const light = mix(base.light, tc, 0.17);
+    if (heat > 0.01) {
+      main = mix(main, '#8a3010', heat * 0.6);
+      dark = mix(dark, '#4a1608', heat * 0.5);
+    }
+    return { main: main, dark: dark, light: light };
+  }
+
+  /* Soot over the hull, and two or three bites taken out of it. Without these a
+   * wreck reads as a unit somebody forgot to colour in. */
+  function drawBreaks(ctx, r, seed) {
+    const soot = ctx.createRadialGradient(0, 0, 0, 0, 0, r * 1.25);
+    soot.addColorStop(0, 'rgba(14,11,9,0.32)');
+    soot.addColorStop(0.6, 'rgba(14,11,9,0.15)');
+    soot.addColorStop(1, 'rgba(14,11,9,0)');
+    ctx.fillStyle = soot;
+    ctx.beginPath(); ctx.arc(0, 0, r * 1.25, 0, U.TAU); ctx.fill();
+
+    ctx.fillStyle = 'rgba(9,7,6,0.82)';
+    const n = 2 + (seed & 1);
+    for (let i = 0; i < n; i++) {
+      const bits = (seed >>> (i * 7)) & 127;
+      const a = (bits / 128) * U.TAU;
+      const d = r * (0.18 + ((bits >>> 3) & 3) * 0.17);
+      const w = r * (0.18 + (bits & 3) * 0.07);
+      ctx.save();
+      ctx.translate(Math.cos(a) * d, Math.sin(a) * d);
+      ctx.rotate(a);
+      ctx.beginPath();
+      ctx.moveTo(-w, -w * 0.55);
+      ctx.lineTo(w * 1.1, -w * 0.25);
+      ctx.lineTo(w * 0.75, w * 0.6);
+      ctx.lineTo(-w * 0.8, w * 0.4);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  /* The wreck itself, centred on the caller's origin. A dead unit's turret has
+   * slewed to wherever the hit left it, so it is drawn at the angle the
+   * simulation recorded rather than tracking anything. */
+  function drawHulkBody(ctx, type, r, hdg, turret, seed, pal) {
+    /* Nothing aboard is running any more. Restored in a finally so a throw from
+     * one shape cannot leave every live unit drawn with dead engines. */
+    LOOK = DEAD;
+    try {
+      ctx.save();
+      ctx.rotate(hdg);
+      drawShapeOf(ctx, type, r, pal.main, pal.dark, pal.light, hdg, turret, null);
+      ctx.restore();
+
+      if (type.shape === 'tank' || type.shape === 'ship' || type.shape === 'wheeled') {
+        ctx.save();
+        ctx.rotate(turret || 0);
+        drawTurret(ctx, r, type, pal.main, pal.dark, pal.light, 0);
+        ctx.restore();
+      }
+    } finally {
+      LOOK = LIT;
+    }
+
+    ctx.save();
+    ctx.rotate(hdg);
+    drawBreaks(ctx, r, seed);
+    ctx.restore();
+  }
+
+  /* Flame. The flicker runs on the renderer's own clock rather than on
+   * simulation time: the battle stops stepping the moment a winner is decided,
+   * and a frozen flame on the result screen looks like a bug. How much there is
+   * to burn still comes from the wreck's age, through `strength`. */
+  function drawFire(ctx, x, y, r, t, seed, strength) {
+    if (strength <= 0.01) return;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 3; i++) {
+      const ph = (((seed >>> (i * 5)) & 31) / 32) * U.TAU;
+      const flick = 0.6 + 0.4 * Math.sin(t * (5.5 + i * 1.7) + ph);
+      const fr = r * (0.44 + i * 0.16) * flick * (0.55 + strength * 0.45);
+      const fx = x + Math.cos(ph) * r * 0.34;
+      const fy = y + Math.sin(ph) * r * 0.34 - fr * 0.3;
+      const a = strength * (0.52 - i * 0.11);
+      const g = ctx.createRadialGradient(fx, fy, 0, fx, fy, fr);
+      g.addColorStop(0, 'rgba(255,240,196,' + a.toFixed(3) + ')');
+      g.addColorStop(0.45, 'rgba(255,146,42,' + (a * 0.78).toFixed(3) + ')');
+      g.addColorStop(1, 'rgba(178,42,10,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(fx, fy, fr, 0, U.TAU); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  /* The column above it. Three puffs on a loop, which is enough to read as
+   * continuous smoke without keeping a particle list per wreck. */
+  function drawSmokeColumn(ctx, x, y, r, t, seed, strength) {
+    if (strength <= 0.01) return;
+    for (let i = 0; i < 3; i++) {
+      const ph = ((t * 0.33) + i / 3 + (((seed >>> (i * 3)) & 7) / 48)) % 1;
+      const rise = ph * (30 + r * 1.7);
+      const pr = r * (0.5 + ph * 1.45);
+      const a = (1 - ph) * 0.26 * strength;
+      const sx = x + Math.sin(t * 0.6 + i * 2.1) * rise * 0.18;
+      const sy = y - rise;
+      const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, pr);
+      g.addColorStop(0, 'rgba(58,54,50,' + a.toFixed(3) + ')');
+      g.addColorStop(1, 'rgba(48,45,42,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(sx, sy, pr, 0, U.TAU); ctx.fill();
+    }
+  }
+
+  /* Vacuum has no smoke column and no flame to speak of. What a holed hull does
+   * instead is vent — a jet out of the breach, going wherever the breach points
+   * and not slowing down — with the odd internal explosion while there is still
+   * anything left aboard to go up. */
+  function drawVenting(ctx, h, t, heat) {
+    if (heat <= 0.02) return;
+    const ph = (((h.seed >>> 11) & 31) / 32) * U.TAU;
+    const vx = Math.cos(h.hdg + ph), vy = Math.sin(h.hdg + ph);
+    const bx = h.x + vx * h.r * 0.5, by = h.y + vy * h.r * 0.5;
+    const len = h.r * (1.7 + 1.1 * Math.sin(t * 2.3 + ph));
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const g = ctx.createLinearGradient(bx, by, bx + vx * len, by + vy * len);
+    g.addColorStop(0, 'rgba(198,226,255,' + (0.40 * heat).toFixed(3) + ')');
+    g.addColorStop(1, 'rgba(118,158,220,0)');
+    ctx.strokeStyle = g;
+    ctx.lineWidth = h.r * 0.4;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(bx, by);
+    ctx.lineTo(bx + vx * len, by + vy * len);
+    ctx.stroke();
+
+    const flare = Math.pow(Math.max(0, Math.sin(t * 1.6 + ph)), 14) * heat;
+    if (flare > 0.01) {
+      const fr = h.r * (0.8 + flare * 0.9);
+      const fg = ctx.createRadialGradient(h.x, h.y, 0, h.x, h.y, fr);
+      fg.addColorStop(0, 'rgba(255,238,196,' + (0.85 * flare).toFixed(3) + ')');
+      fg.addColorStop(0.5, 'rgba(255,142,52,' + (0.5 * flare).toFixed(3) + ')');
+      fg.addColorStop(1, 'rgba(255,90,30,0)');
+      ctx.fillStyle = fg;
+      ctx.beginPath(); ctx.arc(h.x, h.y, fr, 0, U.TAU); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  /* Wreckage the simulation is still animating. Hulls that have burnt out are
+   * not in this list any more — syncDecals has already baked them into the
+   * painted layer, which is why a long battle can keep every wreck it made. */
+  Renderer.prototype.drawHulks = function (ctx, battle, view) {
+    const list = battle.hulks;
+    for (let i = 0; i < list.length; i++) {
+      const h = list[i];
+      if (h.x < view.x0 || h.x > view.x1 || h.y < view.y0 || h.y > view.y1) continue;
+
+      if (h.mode === 'drift') {
+        /* Cooling, not burning: the holes glow for the first quarter minute and
+         * then it is just a dark shape turning over in the dark. */
+        const heat = Math.max(0, 1 - h.t / 15);
+        ctx.save();
+        ctx.translate(h.x, h.y);
+        drawHulkBody(ctx, h.type, h.r, h.hdg, h.turret, h.seed,
+          hulkPalette(h.team, true, heat * 0.85));
+        ctx.restore();
+        drawVenting(ctx, h, this.time, heat);
+        continue;
+      }
+
+      if (h.mode === 'sink') {
+        const k = U.clamp(h.t / h.life, 0, 1);
+        ctx.save();
+        ctx.translate(h.x, h.y);
+        ctx.globalAlpha = 1 - k * 0.8;
+        /* Rolls over as it goes, and flattens into the water rather than just
+         * fading out on the spot. */
+        ctx.rotate(k * 0.5);
+        ctx.scale(1 - k * 0.2, 1 - k * 0.45);
+        drawHulkBody(ctx, h.type, h.r, h.hdg, h.turret, h.seed,
+          hulkPalette(h.team, false, 1 - k));
+        ctx.restore();
+
+        const fr = h.r * (1.1 + k * 1.4);
+        const fg = ctx.createRadialGradient(h.x, h.y, fr * 0.2, h.x, h.y, fr);
+        fg.addColorStop(0, 'rgba(226,242,252,' + (0.34 * (1 - k * 0.45)).toFixed(3) + ')');
+        fg.addColorStop(1, 'rgba(226,242,252,0)');
+        ctx.fillStyle = fg;
+        ctx.beginPath(); ctx.arc(h.x, h.y, fr, 0, U.TAU); ctx.fill();
+
+        /* Burning fuel on the water, for as long as there is hull above it. */
+        drawFire(ctx, h.x, h.y, h.r, this.time, h.seed, Math.max(0, 1 - k * 1.9) * 0.85);
+        drawSmokeColumn(ctx, h.x, h.y, h.r, this.time, h.seed, Math.max(0, 1 - k * 1.3));
+        continue;
+      }
+
+      /* Burning where it fell. Holds full heat for most of its life, then dies
+       * down to the cold hull the decal layer is about to take over. Smoke
+       * starts thinning earlier and outlives the flame, but both have to reach
+       * zero exactly at the handover or the column vanishes in one frame. */
+      const fade = U.clamp(1 - (h.t - h.life * 0.6) / (h.life * 0.4), 0, 1);
+      const smoke = U.clamp(1 - (h.t - h.life * 0.35) / (h.life * 0.65), 0, 1);
+      ctx.save();
+      const sg = ctx.createRadialGradient(h.x, h.y, h.r * 0.3, h.x, h.y, h.r * 2.1);
+      sg.addColorStop(0, 'rgba(18,14,11,0.45)');
+      sg.addColorStop(1, 'rgba(18,14,11,0)');
+      ctx.fillStyle = sg;
+      ctx.beginPath(); ctx.arc(h.x, h.y, h.r * 2.1, 0, U.TAU); ctx.fill();
+      ctx.translate(h.x, h.y);
+      ctx.globalAlpha = 0.94;
+      drawHulkBody(ctx, h.type, h.r, h.hdg, h.turret, h.seed,
+        hulkPalette(h.team, false, fade * fade));
+      ctx.restore();
+      drawFire(ctx, h.x, h.y, h.r, this.time, h.seed, fade);
+      drawSmokeColumn(ctx, h.x, h.y, h.r, this.time, h.seed, smoke);
+    }
+  };
+
   /* --------------------------- unit shapes ------------------------- */
 
   Renderer.prototype.drawUnitShape = function (ctx, type, team, x, y, hdg, turret, alpha, live) {
@@ -1066,7 +1358,7 @@
     ctx.fillStyle = body;
     ctx.beginPath(); ctx.arc(0, 0, r * 0.38, 0, U.TAU); ctx.fill();
     const spin = live ? live.rotor : 0;
-    ctx.strokeStyle = 'rgba(220,235,255,0.35)';
+    ctx.strokeStyle = LOOK.prop;
     ctx.lineWidth = 1.2;
     for (let i = 0; i < 4; i++) {
       const a = (i / 4) * U.TAU + Math.PI / 4;
@@ -1097,14 +1389,14 @@
     const spin = live ? live.rotor : 0.7;
     ctx.save();
     ctx.rotate(spin);
-    ctx.strokeStyle = 'rgba(225,240,255,0.28)';
+    ctx.strokeStyle = LOOK.rotor;
     ctx.lineWidth = 2.2;
     for (let i = 0; i < 2; i++) {
       ctx.rotate(Math.PI / 2);
       ctx.beginPath(); ctx.moveTo(-r * 1.35, 0); ctx.lineTo(r * 1.35, 0); ctx.stroke();
     }
     ctx.restore();
-    ctx.strokeStyle = 'rgba(225,240,255,0.13)';
+    ctx.strokeStyle = LOOK.rotorDisc;
     ctx.lineWidth = 1;
     ctx.beginPath(); ctx.arc(0, 0, r * 1.35, 0, U.TAU); ctx.stroke();
   }
@@ -1131,7 +1423,7 @@
     ctx.fillStyle = light;
     ctx.beginPath(); ctx.arc(r * 0.55, 0, r * 0.16, 0, U.TAU); ctx.fill();
     /* Exhaust. */
-    ctx.fillStyle = 'rgba(255,190,120,0.55)';
+    ctx.fillStyle = LOOK.plume;
     ctx.beginPath();
     ctx.moveTo(-r * 1.1, -r * 0.14);
     ctx.lineTo(-r * 1.9, 0);
@@ -2042,7 +2334,6 @@
    * game is normally played at, whose ship it is has to be readable before what
    * class it is. Engine bells are the one exception — those stay blue-white. */
 
-  const EXHAUST = 'rgba(200,232,255,0.7)';
   const NACELLE = '#1e2129';
 
   function drawSnub(ctx, r, body, dark, light) {
@@ -2082,7 +2373,7 @@
     ctx.fillStyle = NACELLE;                                 // outboard engines
     ctx.fillRect(-r * 1.02, -r * 0.92, r * 0.2, r * 0.36);
     ctx.fillRect(-r * 1.02, r * 0.56, r * 0.2, r * 0.36);
-    ctx.fillStyle = EXHAUST;
+    ctx.fillStyle = LOOK.exhaust;
     ctx.fillRect(-r * 1.12, -r * 0.87, r * 0.12, r * 0.26);
     ctx.fillRect(-r * 1.12, r * 0.61, r * 0.12, r * 0.26);
     ctx.fillStyle = light;                                   // wingtip cannons
@@ -2113,7 +2404,7 @@
     for (let s = -1; s <= 1; s += 2) {
       ctx.beginPath(); ctx.ellipse(-r * 0.75, s * r * 0.44, r * 0.36, r * 0.18, 0, 0, U.TAU); ctx.fill();
     }
-    ctx.fillStyle = EXHAUST;
+    ctx.fillStyle = LOOK.exhaust;
     for (let s = -1; s <= 1; s += 2) {
       ctx.beginPath(); ctx.ellipse(-r * 1.04, s * r * 0.44, r * 0.1, r * 0.13, 0, 0, U.TAU); ctx.fill();
     }
@@ -2137,7 +2428,7 @@
     }
     ctx.fillStyle = NACELLE;
     for (let s = -1; s <= 1; s += 2) ctx.fillRect(-r * 1.42, s * r * 0.52 - r * 0.17, r * 0.2, r * 0.34);
-    ctx.fillStyle = EXHAUST;
+    ctx.fillStyle = LOOK.exhaust;
     for (let s = -1; s <= 1; s += 2) ctx.fillRect(-r * 1.5, s * r * 0.52 - r * 0.12, r * 0.1, r * 0.24);
     ctx.fillStyle = dark;                                    // spar
     ctx.fillRect(-r * 0.25, -r * 0.66, r * 0.5, r * 1.32);
@@ -2175,7 +2466,7 @@
     ctx.beginPath(); ctx.ellipse(r * 0.9, 0, r * 0.24, r * 0.17, 0, 0, U.TAU); ctx.fill();
     ctx.fillStyle = NACELLE;
     ctx.fillRect(-r * 1.28, -r * 0.3, r * 0.22, r * 0.6);
-    ctx.fillStyle = EXHAUST;
+    ctx.fillStyle = LOOK.exhaust;
     ctx.fillRect(-r * 1.38, -r * 0.2, r * 0.12, r * 0.4);
   }
 
@@ -2199,7 +2490,7 @@
     ctx.closePath(); ctx.fill();
     ctx.fillStyle = light;
     ctx.beginPath(); ctx.arc(r * 1.0, r * 0.9, r * 0.14, 0, U.TAU); ctx.fill();
-    ctx.fillStyle = EXHAUST;                                 // stern drive strip
+    ctx.fillStyle = LOOK.exhaust;                            // stern drive strip
     roundRect(ctx, -r * 1.04, -r * 0.5, r * 0.16, r * 1.0, r * 0.07); ctx.fill();
   }
 
@@ -2223,7 +2514,7 @@
     }
     ctx.fillStyle = light;
     ctx.beginPath(); ctx.ellipse(r * 0.78, 0, r * 0.18, r * 0.13, 0, 0, U.TAU); ctx.fill();
-    ctx.fillStyle = EXHAUST;
+    ctx.fillStyle = LOOK.exhaust;
     ctx.fillRect(-r * 1.22, -r * 0.42, r * 0.12, r * 0.84);
   }
 
@@ -2247,7 +2538,7 @@
     ctx.closePath(); ctx.fill();
     ctx.fillStyle = NACELLE;                                 // the famous engine bank
     ctx.fillRect(-r * 1.35, -r * 0.5, r * 0.2, r * 1.0);
-    ctx.fillStyle = EXHAUST;
+    ctx.fillStyle = LOOK.exhaust;
     for (let i = -2; i <= 2; i++) {
       ctx.beginPath(); ctx.arc(-r * 1.32, i * r * 0.2, r * 0.078, 0, U.TAU); ctx.fill();
     }
@@ -2268,7 +2559,7 @@
     roundRect(ctx, -r * 1.3, -r * 0.85, r * 0.8, r * 1.7, r * 0.14); ctx.fill();
     ctx.fillStyle = body;
     roundRect(ctx, -r * 1.2, -r * 0.7, r * 0.6, r * 1.4, r * 0.1); ctx.fill();
-    ctx.fillStyle = EXHAUST;
+    ctx.fillStyle = LOOK.exhaust;
     for (let i = -1; i <= 1; i++) {
       ctx.beginPath(); ctx.arc(-r * 1.34, i * r * 0.36, r * 0.11, 0, U.TAU); ctx.fill();
     }
@@ -2299,7 +2590,7 @@
     for (let s = -1; s <= 1; s += 2) {
       ctx.beginPath(); ctx.ellipse(r * 0.4, s * r * 0.3, r * 0.16, r * 0.1, 0, 0, U.TAU); ctx.fill();
     }
-    ctx.fillStyle = EXHAUST;
+    ctx.fillStyle = LOOK.exhaust;
     for (let i = -1; i <= 1; i++) {
       ctx.beginPath(); ctx.arc(-r * 1.48, i * r * 0.2, r * 0.1, 0, U.TAU); ctx.fill();
     }
@@ -2428,7 +2719,7 @@
     ctx.beginPath(); ctx.ellipse(r * 0.5, 0, r * 0.24, r * 0.16, 0, 0, U.TAU); ctx.fill();
     ctx.fillStyle = NACELLE;
     ctx.fillRect(-r * 1.12, -r * 0.44, r * 0.16, r * 0.88);
-    ctx.fillStyle = EXHAUST;
+    ctx.fillStyle = LOOK.exhaust;
     for (let i = -1; i <= 1; i++) {
       ctx.beginPath(); ctx.arc(-r * 1.1, i * r * 0.28, r * 0.09, 0, U.TAU); ctx.fill();
     }
@@ -2453,7 +2744,7 @@
     ctx.closePath(); ctx.fill();
     ctx.fillStyle = light;
     ctx.beginPath(); ctx.ellipse(r * 0.8, 0, r * 0.22, r * 0.15, 0, 0, U.TAU); ctx.fill();
-    ctx.fillStyle = EXHAUST;
+    ctx.fillStyle = LOOK.exhaust;
     ctx.fillRect(-r * 0.96, -r * 0.3, r * 0.12, r * 0.6);
   }
 
@@ -2478,7 +2769,7 @@
     ctx.closePath(); ctx.fill();
     ctx.fillStyle = light;                                   // bridge
     roundRect(ctx, -r * 0.58, -r * 0.16, r * 0.34, r * 0.32, r * 0.06); ctx.fill();
-    ctx.fillStyle = EXHAUST;
+    ctx.fillStyle = LOOK.exhaust;
     for (let i = -1; i <= 1; i++) {
       ctx.beginPath(); ctx.arc(-r * 1.2, i * r * 0.24, r * 0.1, 0, U.TAU); ctx.fill();
     }
@@ -2502,7 +2793,7 @@
     }
     ctx.fillStyle = light;
     roundRect(ctx, -r * 0.78, -r * 0.14, r * 0.3, r * 0.28, r * 0.06); ctx.fill();
-    ctx.fillStyle = EXHAUST;
+    ctx.fillStyle = LOOK.exhaust;
     for (let i = -1; i <= 1; i++) {
       ctx.beginPath(); ctx.arc(-r * 1.2, i * r * 0.22, r * 0.09, 0, U.TAU); ctx.fill();
     }
@@ -2537,7 +2828,7 @@
     ctx.beginPath(); ctx.arc(-r * 0.56, r * 0.13, r * 0.09, 0, U.TAU); ctx.fill();
     ctx.fillStyle = NACELLE;                                 // main drives
     ctx.fillRect(-r * 1.38, -r * 0.68, r * 0.18, r * 1.36);
-    ctx.fillStyle = 'rgba(200,232,255,0.8)';
+    ctx.fillStyle = LOOK.exhaust;
     const bells = [0, 0.32, -0.32, 0.58, -0.58];
     for (let i = 0; i < bells.length; i++) {
       ctx.beginPath();
